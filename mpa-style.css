@@ -1,0 +1,22 @@
+.mpa-post-block {
+    padding:10px;
+    border:1px solid #ccc;
+    margin-bottom:20px;
+    background:#fafafa;
+  }
+  .mpa-meta-row {
+    display:flex;
+    gap:10px;
+    margin-top:8px;
+    align-items:center;
+  }
+  .mpa-meta-row select,
+  .mpa-meta-row input {
+    flex:1;
+  }
+  .wp-editor-container textarea{
+    width: 100% !important;
+    min-height: 128px;
+    height: auto;
+    box-sizing: border-box;
+  }
