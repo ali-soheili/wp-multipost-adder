@@ -1,0 +1,7 @@
+msgid "Add Multiple Posts"
+msgstr "افزودن چندین نوشته"
+
+msgid "Number of posts:"
+msgstr "تعداد نوشته‌ها:"
+
+...and so on for all UI strings.
