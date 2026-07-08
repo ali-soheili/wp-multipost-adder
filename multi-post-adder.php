@@ -35,6 +35,8 @@ add_action('admin_menu', function () {
 // Enqueue scripts and styles
 add_action('admin_enqueue_scripts', function ($hook) {
     if ($hook === 'settings_page_mpa-settings') {
+        wp_enqueue_media();
+        wp_enqueue_editor();
         wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css');
         return;
     }
@@ -55,6 +57,16 @@ add_action('admin_enqueue_scripts', function ($hook) {
 function mpa_get_presets() {
     $presets = get_option('mpa_content_presets', []);
     return is_array($presets) ? $presets : [];
+}
+
+function mpa_preset_editor($content, $editor_id) {
+    wp_editor($content, $editor_id, [
+        'textarea_name' => 'mpa-preset-content',
+        'textarea_rows' => 12,
+        'media_buttons' => true,
+        'teeny' => false,
+        'quicktags' => true,
+    ]);
 }
 
 function mpa_settings_page() {
@@ -93,13 +105,13 @@ function mpa_settings_page() {
 
                     <label>
                         <span><?php _e('Preset name', 'multi-post-adder'); ?></span>
-                        <input type="text" name="mpa-preset-name" required>
+                        <input type="text" name="mpa-preset-name" class="mpa-preset-title-input" required>
                     </label>
 
-                    <label>
+                    <div class="mpa-preset-editor">
                         <span><?php _e('Post content', 'multi-post-adder'); ?></span>
-                        <textarea name="mpa-preset-content" rows="8" required></textarea>
-                    </label>
+                        <?php mpa_preset_editor('', 'mpa_preset_content_new'); ?>
+                    </div>
 
                     <button type="submit" class="button button-primary"><?php _e('Add Preset', 'multi-post-adder'); ?></button>
                 </form>
@@ -110,28 +122,31 @@ function mpa_settings_page() {
                 <?php else : ?>
                     <div class="mpa-preset-list">
                         <?php foreach ($presets as $preset) : ?>
-                            <form method="post" class="mpa-preset-form mpa-saved-preset">
-                                <?php wp_nonce_field('mpa_save_preset', 'mpa_preset_nonce'); ?>
-                                <input type="hidden" name="mpa-settings-action" value="save_preset">
-                                <input type="hidden" name="mpa-preset-id" value="<?php echo esc_attr($preset['id']); ?>">
+                            <details class="mpa-preset-details">
+                                <summary><?php echo esc_html($preset['name']); ?></summary>
+                                <form method="post" class="mpa-preset-form mpa-saved-preset">
+                                    <?php wp_nonce_field('mpa_save_preset', 'mpa_preset_nonce'); ?>
+                                    <input type="hidden" name="mpa-settings-action" value="save_preset">
+                                    <input type="hidden" name="mpa-preset-id" value="<?php echo esc_attr($preset['id']); ?>">
 
-                                <label>
-                                    <span><?php _e('Preset name', 'multi-post-adder'); ?></span>
-                                    <input type="text" name="mpa-preset-name" value="<?php echo esc_attr($preset['name']); ?>" required>
-                                </label>
+                                    <label>
+                                        <span><?php _e('Preset name', 'multi-post-adder'); ?></span>
+                                        <input type="text" name="mpa-preset-name" class="mpa-preset-title-input" value="<?php echo esc_attr($preset['name']); ?>" required>
+                                    </label>
 
-                                <label>
-                                    <span><?php _e('Post content', 'multi-post-adder'); ?></span>
-                                    <textarea name="mpa-preset-content" rows="8" required><?php echo esc_textarea($preset['content']); ?></textarea>
-                                </label>
+                                    <div class="mpa-preset-editor">
+                                        <span><?php _e('Post content', 'multi-post-adder'); ?></span>
+                                        <?php mpa_preset_editor($preset['content'], 'mpa_preset_content_' . sanitize_key($preset['id'])); ?>
+                                    </div>
 
-                                <div class="mpa-preset-actions">
-                                    <button type="submit" class="button button-primary"><?php _e('Save Changes', 'multi-post-adder'); ?></button>
-                                    <button type="submit" name="mpa-settings-action" value="delete_preset" class="button button-link-delete" formnovalidate onclick="return confirm('<?php echo esc_js(__('Delete this preset?', 'multi-post-adder')); ?>');">
-                                        <?php _e('Remove', 'multi-post-adder'); ?>
-                                    </button>
-                                </div>
-                            </form>
+                                    <div class="mpa-preset-actions">
+                                        <button type="submit" class="button button-primary"><?php _e('Save Changes', 'multi-post-adder'); ?></button>
+                                        <button type="submit" name="mpa-settings-action" value="delete_preset" class="button button-link-delete" formnovalidate onclick="return confirm('<?php echo esc_js(__('Delete this preset?', 'multi-post-adder')); ?>');">
+                                            <?php _e('Remove', 'multi-post-adder'); ?>
+                                        </button>
+                                    </div>
+                                </form>
+                            </details>
                         <?php endforeach; ?>
                     </div>
                 <?php endif; ?>
