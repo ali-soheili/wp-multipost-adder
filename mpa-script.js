@@ -1,4 +1,6 @@
 jQuery(document).ready(function ($) {
+    const presets = Array.isArray(window.mpa_presets) ? window.mpa_presets : Object.values(window.mpa_presets || {});
+
     function createCustomFieldHTML(fieldName) {
         let options = '<option value="">-- Select Key --</option>';
         if (window.mpa_meta_keys) {
@@ -17,26 +19,28 @@ jQuery(document).ready(function ($) {
     function createPostBlock(i) {
         return `
         <div class="mpa-post-block">
-            <h3>Post ${i + 1}</h3>
-            <p><label>Title: <input type="text" name="mpa-posts[${i}][title]" style="width:70%;"></label></p>
-            <p>
+            <h3 class="mpa-post-number">${i + 1}</h3>
+            <p class="mpa-field-row mpa-title-row">
+                <label>Title:</label>
+                <input type="text" name="mpa-posts[${i}][title]">
+            </p>
+            <p class="mpa-field-row">
                 <label>Content:</label><br>
                 <textarea id="editor-${i}" name="mpa-posts[${i}][content]"></textarea>
             </p>
-            <p>
+            <p class="mpa-field-row">
                 <label>Featured Image: 
-                    <button class="button mpa-upload" data-index="${i}">Upload Image</button>
+                    <button type="button" class="button mpa-upload" data-index="${i}">Upload Image</button>
                     <input type="hidden" name="mpa-posts[${i}][image]" id="mpa-image-${i}">
                     <span class="mpa-image-preview" id="mpa-preview-${i}"></span>
                 </label>
             </p>
-            <p>
+            <p class="mpa-field-row">
                 <label>Custom Fields: 
                     <button type="button" class="button mpa-add-meta" data-index="${i}">Add Custom Field</button>
                     <div class="mpa-custom-fields" id="mpa-meta-${i}"></div>
                 </label>
             </p>
-            <hr>
         </div>`;
     }
 
@@ -49,6 +53,34 @@ jQuery(document).ready(function ($) {
                 mediaButtons: true
             });
         }
+    }
+
+    function getSelectedPresetContent() {
+        const presetId = $('#mpa-content-preset').val();
+        const preset = presets.find(item => item.id === presetId);
+        return preset ? preset.content : '';
+    }
+
+    function setEditorContent(id, content) {
+        const textarea = $(`#${id}`);
+        textarea.val(content);
+
+        if (typeof tinyMCE !== 'undefined') {
+            const editor = tinyMCE.get(id);
+            if (editor) {
+                editor.setContent(content);
+                editor.save();
+            }
+        }
+    }
+
+    function applySelectedPreset() {
+        const content = getSelectedPresetContent();
+        if (!content) return;
+
+        $('#mpa-posts-container textarea').each(function () {
+            setEditorContent(this.id, content);
+        });
     }
 
     $('#mpa-count').on('change', function () {
@@ -64,8 +96,11 @@ jQuery(document).ready(function ($) {
             for (let i = 0; i < count; i++) {
                 initEditor(`editor-${i}`);
             }
+            applySelectedPreset();
         }, 200); // Delay to allow DOM to render
     }).trigger('change');
+
+    $('#mpa-content-preset').on('change', applySelectedPreset);
 
     $(document).on('click', '.mpa-upload', function (e) {
         e.preventDefault();

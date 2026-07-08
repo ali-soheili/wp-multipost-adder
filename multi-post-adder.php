@@ -22,10 +22,23 @@ add_action('admin_menu', function () {
         'add-multiple-posts',
         'mpa_admin_page'
     );
+
+    add_options_page(
+        __('MPA Settings', 'multi-post-adder'),
+        __('MPA Settings', 'multi-post-adder'),
+        'manage_options',
+        'mpa-settings',
+        'mpa_settings_page'
+    );
 });
 
 // Enqueue scripts and styles
 add_action('admin_enqueue_scripts', function ($hook) {
+    if ($hook === 'settings_page_mpa-settings') {
+        wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css');
+        return;
+    }
+
     if ($hook !== 'posts_page_add-multiple-posts') return;
 
     wp_enqueue_media();
@@ -36,10 +49,100 @@ add_action('admin_enqueue_scripts', function ($hook) {
     global $wpdb;
     $keys = $wpdb->get_col("SELECT DISTINCT meta_key FROM $wpdb->postmeta WHERE meta_key NOT LIKE '\\_%' LIMIT 50");
     wp_localize_script('mpa-script', 'mpa_meta_keys', $keys);
+    wp_localize_script('mpa-script', 'mpa_presets', mpa_get_presets());
 });
 
+function mpa_get_presets() {
+    $presets = get_option('mpa_content_presets', []);
+    return is_array($presets) ? $presets : [];
+}
+
+function mpa_settings_page() {
+    if (!current_user_can('manage_options')) return;
+
+    $active_tab = isset($_GET['tab']) ? sanitize_key($_GET['tab']) : 'presets';
+    $presets = mpa_get_presets();
+    ?>
+    <div class="wrap mpa-settings-page">
+        <h1><?php _e('MPA Settings', 'multi-post-adder'); ?></h1>
+
+        <?php if (!empty($_GET['mpa-message'])) : ?>
+            <div class="notice notice-success is-dismissible">
+                <p>
+                    <?php
+                    echo sanitize_key($_GET['mpa-message']) === 'deleted'
+                        ? esc_html__('Preset removed.', 'multi-post-adder')
+                        : esc_html__('Preset saved.', 'multi-post-adder');
+                    ?>
+                </p>
+            </div>
+        <?php endif; ?>
+
+        <nav class="nav-tab-wrapper">
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=presets')); ?>" class="nav-tab <?php echo $active_tab === 'presets' ? 'nav-tab-active' : ''; ?>">
+                <?php _e('Presets', 'multi-post-adder'); ?>
+            </a>
+        </nav>
+
+        <?php if ($active_tab === 'presets') : ?>
+            <div class="mpa-settings-panel">
+                <h2><?php _e('Add New Preset', 'multi-post-adder'); ?></h2>
+                <form method="post" class="mpa-preset-form">
+                    <?php wp_nonce_field('mpa_save_preset', 'mpa_preset_nonce'); ?>
+                    <input type="hidden" name="mpa-settings-action" value="save_preset">
+
+                    <label>
+                        <span><?php _e('Preset name', 'multi-post-adder'); ?></span>
+                        <input type="text" name="mpa-preset-name" required>
+                    </label>
+
+                    <label>
+                        <span><?php _e('Post content', 'multi-post-adder'); ?></span>
+                        <textarea name="mpa-preset-content" rows="8" required></textarea>
+                    </label>
+
+                    <button type="submit" class="button button-primary"><?php _e('Add Preset', 'multi-post-adder'); ?></button>
+                </form>
+
+                <h2><?php _e('Saved Presets', 'multi-post-adder'); ?></h2>
+                <?php if (empty($presets)) : ?>
+                    <p><?php _e('No presets saved yet.', 'multi-post-adder'); ?></p>
+                <?php else : ?>
+                    <div class="mpa-preset-list">
+                        <?php foreach ($presets as $preset) : ?>
+                            <form method="post" class="mpa-preset-form mpa-saved-preset">
+                                <?php wp_nonce_field('mpa_save_preset', 'mpa_preset_nonce'); ?>
+                                <input type="hidden" name="mpa-settings-action" value="save_preset">
+                                <input type="hidden" name="mpa-preset-id" value="<?php echo esc_attr($preset['id']); ?>">
+
+                                <label>
+                                    <span><?php _e('Preset name', 'multi-post-adder'); ?></span>
+                                    <input type="text" name="mpa-preset-name" value="<?php echo esc_attr($preset['name']); ?>" required>
+                                </label>
+
+                                <label>
+                                    <span><?php _e('Post content', 'multi-post-adder'); ?></span>
+                                    <textarea name="mpa-preset-content" rows="8" required><?php echo esc_textarea($preset['content']); ?></textarea>
+                                </label>
+
+                                <div class="mpa-preset-actions">
+                                    <button type="submit" class="button button-primary"><?php _e('Save Changes', 'multi-post-adder'); ?></button>
+                                    <button type="submit" name="mpa-settings-action" value="delete_preset" class="button button-link-delete" formnovalidate onclick="return confirm('<?php echo esc_js(__('Delete this preset?', 'multi-post-adder')); ?>');">
+                                        <?php _e('Remove', 'multi-post-adder'); ?>
+                                    </button>
+                                </div>
+                            </form>
+                        <?php endforeach; ?>
+                    </div>
+                <?php endif; ?>
+            </div>
+        <?php endif; ?>
+    </div>
+    <?php
+}
 
 function mpa_admin_page() {
+    $presets = mpa_get_presets();
     ?>
     <div class="wrap">
         <h1><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
@@ -71,6 +174,16 @@ function mpa_admin_page() {
                         <span><?php _e('Hashtags (comma-separated):', 'multi-post-adder'); ?></span>
                         <input type="text" name="mpa-hashtags" id="mpa-hashtags">
                     </label>
+
+                    <label>
+                        <span><?php _e('Content preset:', 'multi-post-adder'); ?></span>
+                        <select id="mpa-content-preset">
+                            <option value=""><?php _e('Select a preset', 'multi-post-adder'); ?></option>
+                            <?php foreach ($presets as $preset) : ?>
+                                <option value="<?php echo esc_attr($preset['id']); ?>"><?php echo esc_html($preset['name']); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                    </label>
                 </div>
 
                 <div class="mpa-global-custom-fields">
@@ -88,6 +201,44 @@ function mpa_admin_page() {
     </div>
     <?php
 }
+
+add_action('admin_init', function () {
+    if (empty($_POST['mpa-settings-action'])) return;
+    if (!current_user_can('manage_options')) return;
+    if (empty($_POST['mpa_preset_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['mpa_preset_nonce'])), 'mpa_save_preset')) return;
+
+    $action = sanitize_key(wp_unslash($_POST['mpa-settings-action']));
+    $presets = mpa_get_presets();
+    $preset_id = !empty($_POST['mpa-preset-id']) ? sanitize_key(wp_unslash($_POST['mpa-preset-id'])) : '';
+
+    if ($action === 'delete_preset' && $preset_id) {
+        unset($presets[$preset_id]);
+        update_option('mpa_content_presets', $presets);
+        wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=presets&mpa-message=deleted'));
+        exit;
+    }
+
+    if ($action === 'save_preset') {
+        $preset_name = !empty($_POST['mpa-preset-name']) ? sanitize_text_field(wp_unslash($_POST['mpa-preset-name'])) : '';
+        $preset_content = !empty($_POST['mpa-preset-content']) ? wp_kses_post(wp_unslash($_POST['mpa-preset-content'])) : '';
+
+        if ($preset_name && $preset_content) {
+            if (!$preset_id) {
+                $preset_id = 'preset_' . str_replace('.', '_', uniqid('', true));
+            }
+
+            $presets[$preset_id] = [
+                'id' => $preset_id,
+                'name' => $preset_name,
+                'content' => $preset_content,
+            ];
+
+            update_option('mpa_content_presets', $presets);
+            wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=presets&mpa-message=saved'));
+            exit;
+        }
+    }
+});
 
 add_action('admin_init', function () {
     if (!isset($_POST['mpa-posts'])) return;

@@ -46,25 +46,100 @@
     margin-top: 10px;
 }
 
+.mpa-settings-panel {
+    max-width: 980px;
+    margin-top: 20px;
+}
+
+.mpa-preset-form {
+    margin: 0 0 20px;
+    padding: 16px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+}
+
+.mpa-preset-form label {
+    display: block;
+    margin-bottom: 14px;
+    font-weight: 600;
+}
+
+.mpa-preset-form label span {
+    display: block;
+    margin-bottom: 6px;
+}
+
+.mpa-preset-form input[type="text"],
+.mpa-preset-form textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+    font-weight: 400;
+}
+
+.mpa-saved-preset {
+    background: #fafafa;
+}
+
+.mpa-preset-actions {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
 .mpa-post-block {
-    padding:10px;
-    border:1px solid #ccc;
-    margin-bottom:20px;
-    background:#fafafa;
-  }
-  .mpa-meta-row {
+    padding: 14px;
+    border: 1px solid #ccd0d4;
+    margin-bottom: 18px;
+    background: #fafafa;
+}
+
+.mpa-post-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    height: 28px;
+    margin: 0 0 12px;
+    border-radius: 50%;
+    background: #f0f0f1;
+    color: #1d2327;
+    font-size: 13px;
+    line-height: 1;
+}
+
+.mpa-field-row {
+    margin: 0 0 14px;
+}
+
+.mpa-field-row > label {
+    display: inline-block;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.mpa-title-row input {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+.mpa-meta-row {
     display:flex;
     gap:10px;
     margin-top:8px;
     align-items:center;
-  }
-  .mpa-meta-row select,
-  .mpa-meta-row input {
+}
+
+.mpa-meta-row select,
+.mpa-meta-row input {
     flex:1;
-  }
-  .wp-editor-container textarea{
+}
+
+.wp-editor-container textarea{
     width: 100% !important;
     min-height: 128px;
     height: auto;
     box-sizing: border-box;
-  }
+}
