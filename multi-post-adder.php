@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.3
+ * Version: 1.4
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
