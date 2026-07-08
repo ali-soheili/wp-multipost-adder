@@ -35,7 +35,7 @@ jQuery(document).ready(function ($) {
             <h3 class="mpa-post-number">${i + 1}</h3>
             <p class="mpa-field-row mpa-title-row">
                 <label>${labels.title}</label>
-                <input type="text" name="mpa-posts[${i}][title]">
+                <input Style="width:stretch;" type="text" name="mpa-posts[${i}][title]">
             </p>
             <p class="mpa-field-row">
                 <label>${labels.content}</label><br>

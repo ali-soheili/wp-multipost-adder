@@ -126,7 +126,7 @@ function mpa_settings_page() {
                         <?php mpa_preset_editor('', 'mpa_preset_content_new'); ?>
                     </div>
 
-                    <button type="submit" class="button button-primary"><?php _e('Add Preset', 'multi-post-adder'); ?></button>
+                    <button style="margin-top: 1.5rem;" type="submit" class="button button-primary"><?php _e('Add Preset', 'multi-post-adder'); ?></button>
                 </form>
 
                 <hr class="mpa-presets-divider">
