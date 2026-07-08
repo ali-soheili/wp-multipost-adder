@@ -52,6 +52,19 @@ add_action('admin_enqueue_scripts', function ($hook) {
     $keys = $wpdb->get_col("SELECT DISTINCT meta_key FROM $wpdb->postmeta WHERE meta_key NOT LIKE '\\_%' LIMIT 50");
     wp_localize_script('mpa-script', 'mpa_meta_keys', $keys);
     wp_localize_script('mpa-script', 'mpa_presets', mpa_get_presets());
+    wp_localize_script('mpa-script', 'mpa_i18n', [
+        'selectKey' => __('-- Select Key --', 'multi-post-adder'),
+        'customKey' => __('Or custom key', 'multi-post-adder'),
+        'value' => __('Value', 'multi-post-adder'),
+        'title' => __('Title:', 'multi-post-adder'),
+        'content' => __('Content:', 'multi-post-adder'),
+        'featuredImage' => __('Featured Image:', 'multi-post-adder'),
+        'uploadImage' => __('Upload Image', 'multi-post-adder'),
+        'customFields' => __('Custom Fields:', 'multi-post-adder'),
+        'addCustomField' => __('Add Custom Field', 'multi-post-adder'),
+        'selectOrUploadImage' => __('Select or Upload Image', 'multi-post-adder'),
+        'useThisImage' => __('Use this image', 'multi-post-adder'),
+    ]);
 });
 
 function mpa_get_presets() {
@@ -115,6 +128,8 @@ function mpa_settings_page() {
 
                     <button type="submit" class="button button-primary"><?php _e('Add Preset', 'multi-post-adder'); ?></button>
                 </form>
+
+                <hr class="mpa-presets-divider">
 
                 <h2><?php _e('Saved Presets', 'multi-post-adder'); ?></h2>
                 <?php if (empty($presets)) : ?>

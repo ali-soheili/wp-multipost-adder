@@ -1,7 +1,122 @@
+msgid ""
+msgstr ""
+"Project-Id-Version: Multi Post Adder 1.4\n"
+"Report-Msgid-Bugs-To: \n"
+"POT-Creation-Date: 2026-07-08 00:00+0000\n"
+"PO-Revision-Date: 2026-07-08 00:00+0000\n"
+"Last-Translator: \n"
+"Language-Team: Persian\n"
+"Language: fa_IR\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: Codex\n"
+"X-Domain: multi-post-adder\n"
+
 msgid "Add Multiple Posts"
 msgstr "افزودن چندین نوشته"
+
+msgid "MPA Settings"
+msgstr "تنظیمات MPA"
+
+msgid "Preset removed."
+msgstr "قالب آماده حذف شد."
+
+msgid "Preset saved."
+msgstr "قالب آماده ذخیره شد."
+
+msgid "Presets"
+msgstr "قالب‌های آماده"
+
+msgid "Add New Preset"
+msgstr "افزودن قالب آماده جدید"
+
+msgid "Preset name"
+msgstr "نام قالب آماده"
+
+msgid "Post content"
+msgstr "محتوای نوشته"
+
+msgid "Add Preset"
+msgstr "افزودن قالب آماده"
+
+msgid "Saved Presets"
+msgstr "قالب‌های آماده ذخیره‌شده"
+
+msgid "No presets saved yet."
+msgstr "هنوز قالب آماده‌ای ذخیره نشده است."
+
+msgid "Save Changes"
+msgstr "ذخیره تغییرات"
+
+msgid "Delete this preset?"
+msgstr "این قالب آماده حذف شود؟"
+
+msgid "Remove"
+msgstr "حذف"
+
+msgid "Global Adjustments"
+msgstr "تنظیمات کلی"
 
 msgid "Number of posts:"
 msgstr "تعداد نوشته‌ها:"
 
-...and so on for all UI strings.
+msgid "Category:"
+msgstr "دسته‌بندی:"
+
+msgid "Select a category"
+msgstr "انتخاب دسته‌بندی"
+
+msgid "Hashtags (comma-separated):"
+msgstr "هشتگ‌ها (جداشده با ویرگول):"
+
+msgid "Content preset:"
+msgstr "قالب آماده محتوا:"
+
+msgid "Select a preset"
+msgstr "انتخاب قالب آماده"
+
+msgid "Global Custom Fields"
+msgstr "فیلدهای سفارشی کلی"
+
+msgid "Add Global Custom Field"
+msgstr "افزودن فیلد سفارشی کلی"
+
+msgid "Publish Posts"
+msgstr "انتشار نوشته‌ها"
+
+msgid "Save as Draft"
+msgstr "ذخیره به‌عنوان پیش‌نویس"
+
+msgid "-- Select Key --"
+msgstr "-- انتخاب کلید --"
+
+msgid "Or custom key"
+msgstr "یا کلید سفارشی"
+
+msgid "Value"
+msgstr "مقدار"
+
+msgid "Title:"
+msgstr "عنوان:"
+
+msgid "Content:"
+msgstr "محتوا:"
+
+msgid "Featured Image:"
+msgstr "تصویر شاخص:"
+
+msgid "Upload Image"
+msgstr "بارگذاری تصویر"
+
+msgid "Custom Fields:"
+msgstr "فیلدهای سفارشی:"
+
+msgid "Add Custom Field"
+msgstr "افزودن فیلد سفارشی"
+
+msgid "Select or Upload Image"
+msgstr "انتخاب یا بارگذاری تصویر"
+
+msgid "Use this image"
+msgstr "استفاده از این تصویر"

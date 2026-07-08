@@ -93,27 +93,41 @@
     line-height: 1.4;
 }
 
+.mpa-preset-form > .button-primary {
+    margin-top: 10px;
+}
+
+.mpa-presets-divider {
+    margin: 28px 0 22px;
+    border: 0;
+    border-top: 1px solid #dcdcde;
+}
+
 .mpa-saved-preset {
     margin: 0;
     border: 0;
     border-top: 1px solid #dcdcde;
-    background: #fafafa;
+    background: #fff;
 }
 
 .mpa-preset-details {
-    margin-bottom: 12px;
+    margin-bottom: 14px;
     border: 1px solid #ccd0d4;
+    border-radius: 4px;
     background: #fff;
+    overflow: hidden;
 }
 
 .mpa-preset-details summary {
     padding: 12px 14px;
     cursor: pointer;
     font-weight: 600;
+    background: #f6f7f7;
 }
 
 .mpa-preset-details[open] summary {
     border-bottom: 1px solid #dcdcde;
+    background: #fff;
 }
 
 .mpa-preset-actions {
