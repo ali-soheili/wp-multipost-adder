@@ -1,5 +1,5 @@
 jQuery(document).ready(function ($) {
-    function createCustomFieldHTML(i, mi) {
+    function createCustomFieldHTML(fieldName) {
         let options = '<option value="">-- Select Key --</option>';
         if (window.mpa_meta_keys) {
             mpa_meta_keys.forEach(key => {
@@ -8,9 +8,9 @@ jQuery(document).ready(function ($) {
         }
         return `
         <div class="mpa-meta-row">
-            <select name="mpa-posts[${i}][meta][${mi}][key]">${options}</select>
-            <input type="text" name="mpa-posts[${i}][meta][${mi}][custom_key]" placeholder="Or custom key">
-            <input type="text" name="mpa-posts[${i}][meta][${mi}][value]" placeholder="Value">
+            <select name="${fieldName}[key]">${options}</select>
+            <input type="text" name="${fieldName}[custom_key]" placeholder="Or custom key">
+            <input type="text" name="${fieldName}[value]" placeholder="Value">
         </div>`;
     }
 
@@ -92,6 +92,12 @@ jQuery(document).ready(function ($) {
         const index = $(this).data('index');
         const container = $(`#mpa-meta-${index}`);
         const metaIndex = container.children().length;
-        container.append(createCustomFieldHTML(index, metaIndex));
+        container.append(createCustomFieldHTML(`mpa-posts[${index}][meta][${metaIndex}]`));
+    });
+
+    $(document).on('click', '.mpa-add-global-meta', function () {
+        const container = $('#mpa-global-meta');
+        const metaIndex = container.children().length;
+        container.append(createCustomFieldHTML(`mpa-global-meta[${metaIndex}]`));
     });
 });

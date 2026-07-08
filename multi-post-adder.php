@@ -44,12 +44,17 @@ function mpa_admin_page() {
     <div class="wrap">
         <h1><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
         <form id="mpa-form" method="post">
-            <label><?php _e('Number of posts:', 'multi-post-adder'); ?> <input type="number" id="mpa-count" min="1" value="1" style="width:300px;"></label>
-            <br><br>
-            
-            
-            
-            <label><?php _e('Category:', 'multi-post-adder'); ?>
+            <section class="mpa-global-adjustments">
+                <h2><?php _e('Global Adjustments', 'multi-post-adder'); ?></h2>
+
+                <div class="mpa-global-fields">
+                    <label>
+                        <span><?php _e('Number of posts:', 'multi-post-adder'); ?></span>
+                        <input type="number" id="mpa-count" min="1" value="1">
+                    </label>
+
+                    <label>
+                        <span><?php _e('Category:', 'multi-post-adder'); ?></span>
                 <?php
                 wp_dropdown_categories([
                     'name' => 'mpa-category',
@@ -60,12 +65,21 @@ function mpa_admin_page() {
                     'depth' => 0,                      // ✅ Show all levels
                 ]);
                 ?>
-            </label>
+                    </label>
 
-            
-            <br><br>
-            <label><?php _e('Hashtags (comma-separated):', 'multi-post-adder'); ?> <input type="text" name="mpa-hashtags" id="mpa-hashtags" style="width:70%;"></label>
-            <br><br>
+                    <label>
+                        <span><?php _e('Hashtags (comma-separated):', 'multi-post-adder'); ?></span>
+                        <input type="text" name="mpa-hashtags" id="mpa-hashtags">
+                    </label>
+                </div>
+
+                <div class="mpa-global-custom-fields">
+                    <h3><?php _e('Global Custom Fields', 'multi-post-adder'); ?></h3>
+                    <button type="button" class="button mpa-add-global-meta"><?php _e('Add Global Custom Field', 'multi-post-adder'); ?></button>
+                    <div class="mpa-custom-fields" id="mpa-global-meta"></div>
+                </div>
+            </section>
+
             <div id="mpa-posts-container"></div>
             <br>
             <button type="submit" name="mpa-submit" class="button button-primary"><?php _e('Publish Posts', 'multi-post-adder'); ?></button>
@@ -80,6 +94,7 @@ add_action('admin_init', function () {
 
     $category_id = intval($_POST['mpa-category']);
     $hashtags = sanitize_text_field($_POST['mpa-hashtags']);
+    $global_meta_data = !empty($_POST['mpa-global-meta']) ? $_POST['mpa-global-meta'] : [];
     $posts_data = $_POST['mpa-posts'];
     $status = isset($_POST['mpa-submit']) ? 'publish' : 'draft';
 
@@ -95,6 +110,14 @@ add_action('admin_init', function () {
             'post_category' => [$category_id],
         ]);
         if ($post_id && $image_id) set_post_thumbnail($post_id, $image_id);
+
+        if (!empty($global_meta_data)) {
+            foreach ($global_meta_data as $meta) {
+                $key = sanitize_text_field($meta['key'] ?: $meta['custom_key']);
+                $value = sanitize_text_field($meta['value']);
+                if ($key) update_post_meta($post_id, $key, $value);
+            }
+        }
 
         if (!empty($post_data['meta'])) {
             foreach ($post_data['meta'] as $meta) {

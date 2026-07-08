@@ -1,3 +1,51 @@
+.mpa-global-adjustments {
+    margin: 20px 0;
+    padding: 16px;
+    border: 1px solid #ccd0d4;
+    background: #fff;
+}
+
+.mpa-global-adjustments h2 {
+    margin: 0 0 14px;
+    font-size: 16px;
+}
+
+.mpa-global-fields {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 14px;
+    align-items: end;
+}
+
+.mpa-global-fields label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 600;
+}
+
+.mpa-global-fields input,
+.mpa-global-fields select {
+    width: 100%;
+    max-width: 100%;
+    font-weight: 400;
+}
+
+.mpa-global-custom-fields {
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid #dcdcde;
+}
+
+.mpa-global-custom-fields h3 {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.mpa-global-custom-fields .mpa-custom-fields {
+    margin-top: 10px;
+}
+
 .mpa-post-block {
     padding:10px;
     border:1px solid #ccc;
