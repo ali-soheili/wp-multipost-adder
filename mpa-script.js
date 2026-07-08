@@ -1,8 +1,21 @@
 jQuery(document).ready(function ($) {
     const presets = Array.isArray(window.mpa_presets) ? window.mpa_presets : Object.values(window.mpa_presets || {});
+    const labels = Object.assign({
+        selectKey: '-- Select Key --',
+        customKey: 'Or custom key',
+        value: 'Value',
+        title: 'Title:',
+        content: 'Content:',
+        featuredImage: 'Featured Image:',
+        uploadImage: 'Upload Image',
+        customFields: 'Custom Fields:',
+        addCustomField: 'Add Custom Field',
+        selectOrUploadImage: 'Select or Upload Image',
+        useThisImage: 'Use this image'
+    }, window.mpa_i18n || {});
 
     function createCustomFieldHTML(fieldName) {
-        let options = '<option value="">-- Select Key --</option>';
+        let options = `<option value="">${labels.selectKey}</option>`;
         if (window.mpa_meta_keys) {
             mpa_meta_keys.forEach(key => {
                 options += `<option value="${key}">${key}</option>`;
@@ -11,8 +24,8 @@ jQuery(document).ready(function ($) {
         return `
         <div class="mpa-meta-row">
             <select name="${fieldName}[key]">${options}</select>
-            <input type="text" name="${fieldName}[custom_key]" placeholder="Or custom key">
-            <input type="text" name="${fieldName}[value]" placeholder="Value">
+            <input type="text" name="${fieldName}[custom_key]" placeholder="${labels.customKey}">
+            <input type="text" name="${fieldName}[value]" placeholder="${labels.value}">
         </div>`;
     }
 
@@ -21,23 +34,23 @@ jQuery(document).ready(function ($) {
         <div class="mpa-post-block">
             <h3 class="mpa-post-number">${i + 1}</h3>
             <p class="mpa-field-row mpa-title-row">
-                <label>Title:</label>
+                <label>${labels.title}</label>
                 <input type="text" name="mpa-posts[${i}][title]">
             </p>
             <p class="mpa-field-row">
-                <label>Content:</label><br>
+                <label>${labels.content}</label><br>
                 <textarea id="editor-${i}" name="mpa-posts[${i}][content]"></textarea>
             </p>
             <p class="mpa-field-row">
-                <label>Featured Image: 
-                    <button type="button" class="button mpa-upload" data-index="${i}">Upload Image</button>
+                <label>${labels.featuredImage}
+                    <button type="button" class="button mpa-upload" data-index="${i}">${labels.uploadImage}</button>
                     <input type="hidden" name="mpa-posts[${i}][image]" id="mpa-image-${i}">
                     <span class="mpa-image-preview" id="mpa-preview-${i}"></span>
                 </label>
             </p>
             <p class="mpa-field-row">
-                <label>Custom Fields: 
-                    <button type="button" class="button mpa-add-meta" data-index="${i}">Add Custom Field</button>
+                <label>${labels.customFields}
+                    <button type="button" class="button mpa-add-meta" data-index="${i}">${labels.addCustomField}</button>
                     <div class="mpa-custom-fields" id="mpa-meta-${i}"></div>
                 </label>
             </p>
@@ -109,8 +122,8 @@ jQuery(document).ready(function ($) {
         const preview = $(`#mpa-preview-${index}`);
 
         const frame = wp.media({
-            title: 'Select or Upload Image',
-            button: { text: 'Use this image' },
+            title: labels.selectOrUploadImage,
+            button: { text: labels.useThisImage },
             multiple: false
         });
 
