@@ -189,7 +189,7 @@
 
 .wp-editor-container textarea{
     width: 100% !important;
-    min-height: 128px;
+    min-height: 420px;
     height: auto;
     box-sizing: border-box;
 }
