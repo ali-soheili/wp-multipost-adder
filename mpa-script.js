@@ -26,7 +26,8 @@ jQuery(document).ready(function ($) {
         translateFailed: 'Translation failed.',
         selectedCount: '%d selected',
         remove: 'Remove',
-        noPlaceholders: 'No placeholders found in this post.'
+        noPlaceholders: 'No placeholders found in this post.',
+        copied: 'Copied!'
     }, window.mpa_i18n || {});
     const automation = window.mpa_automation || {};
 
@@ -52,23 +53,18 @@ jQuery(document).ready(function ($) {
     function createPostBlock(i) {
         return `
         <div class="mpa-post-block">
-            <h3 class="mpa-post-number">${i + 1}</h3>
-            <div class="mpa-post-automation" data-index="${i}">
-                <span class="mpa-post-automation-label">${labels.automation}</span>
-                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="translate" data-index="${i}" title="${labels.translateTitle}" aria-label="${labels.translateTitle}">
-                    <span class="dashicons dashicons-translation" aria-hidden="true"></span>
-                </button>
-                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="download" data-index="${i}" title="${labels.downloadLink}" aria-label="${labels.downloadLink}">
-                    <span class="dashicons dashicons-download" aria-hidden="true"></span>
-                </button>
-                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="filename" data-index="${i}" title="${labels.fileName}" aria-label="${labels.fileName}">
-                    <span class="dashicons dashicons-media-default" aria-hidden="true"></span>
-                </button>
-                <span class="mpa-auto-divider" aria-hidden="true"></span>
-                <button type="button" class="button button-primary mpa-auto-btn mpa-icon-btn" data-action="all" data-index="${i}" title="${labels.runAll}" aria-label="${labels.runAll}">
-                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
-                </button>
-                <span class="mpa-auto-status" id="mpa-auto-status-${i}" aria-live="polite"></span>
+            <div class="mpa-post-head">
+                <h3 class="mpa-post-number">${i + 1}</h3>
+                <div class="mpa-post-automation" data-index="${i}">
+                    <span class="mpa-auto-status" id="mpa-auto-status-${i}" aria-live="polite"></span>
+                    <div class="mpa-tools" role="group" aria-label="${labels.automation}">
+                        <button type="button" class="mpa-tool mpa-auto-btn" data-action="translate" data-index="${i}" data-tip="${labels.translateTitle}" aria-label="${labels.translateTitle}"><span class="dashicons dashicons-translation" aria-hidden="true"></span></button>
+                        <button type="button" class="mpa-tool mpa-auto-btn" data-action="download" data-index="${i}" data-tip="${labels.downloadLink}" aria-label="${labels.downloadLink}"><span class="dashicons dashicons-download" aria-hidden="true"></span></button>
+                        <button type="button" class="mpa-tool mpa-auto-btn" data-action="filename" data-index="${i}" data-tip="${labels.fileName}" aria-label="${labels.fileName}"><span class="dashicons dashicons-media-default" aria-hidden="true"></span></button>
+                        <span class="mpa-tools-sep" aria-hidden="true"></span>
+                        <button type="button" class="mpa-tool mpa-tool-primary mpa-auto-btn" data-action="all" data-index="${i}" data-tip="${labels.runAll}" aria-label="${labels.runAll}"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>
+                    </div>
+                </div>
             </div>
             <p class="mpa-field-row mpa-title-row">
                 <label>${labels.title}</label>
@@ -237,6 +233,26 @@ jQuery(document).ready(function ($) {
         input.focus();
         input.setSelectionRange(start + token.length, start + token.length);
         saveAutomationSettings();
+    });
+
+    $('.mpa-token').attr('data-copied', labels.copied);
+
+    // Click a placeholder to copy it.
+    $(document).on('click', '.mpa-token', function () {
+        const $token = $(this);
+        const text = $token.data('copy');
+        const done = () => {
+            $token.addClass('is-copied');
+            setTimeout(() => $token.removeClass('is-copied'), 1200);
+        };
+        if (navigator.clipboard && window.isSecureContext) {
+            navigator.clipboard.writeText(text).then(done, () => {});
+        } else {
+            const $tmp = $('<textarea>').val(text).css({ position: 'fixed', opacity: 0 }).appendTo('body');
+            $tmp.get(0).select();
+            try { document.execCommand('copy'); done(); } catch (e) {}
+            $tmp.remove();
+        }
     });
 
     function escapeHtml(text) {
@@ -530,12 +546,46 @@ jQuery(document).ready(function ($) {
                 $chips.append($chip);
             });
 
+            fitChips();
             $catSelect.toggleClass('has-value', selected.length > 0);
             $catSelect.find('.mpa-cat-count').text(selected.length ? labels.selectedCount.replace('%d', selected.length) : '');
             $catSelect.find('.mpa-cat-option').each(function () {
                 $(this).toggleClass('is-checked', $(this).find('input').is(':checked'));
             });
         }
+
+        // Keep the field one line high: hide chips that don't fit and show "+N".
+        function fitChips() {
+            const chipsEl = $chips.get(0);
+            const $all = $chips.children('.mpa-cat-chip').show();
+            $chips.children('.mpa-cat-more').remove();
+            if (!chipsEl || chipsEl.clientWidth === 0) return;
+
+            const $more = $('<span class="mpa-cat-more"></span>');
+            let hidden = 0;
+            for (let i = $all.length - 1; i > 0 && chipsEl.scrollWidth > chipsEl.clientWidth + 1; i--) {
+                $all.eq(i).hide();
+                hidden++;
+                $more.text(`+${hidden}`).attr('title', $all.filter(':hidden').map((_, el) => $(el).text().replace(/×$/, '')).get().join(', '));
+                if (!$more.parent().length) $chips.append($more);
+            }
+        }
+
+        // Match the height, border and radius of the other inputs in this WordPress version.
+        function syncFieldMetrics() {
+            const ref = document.getElementById('mpa-hashtags');
+            if (!ref) return;
+            const cs = window.getComputedStyle(ref);
+            const el = $catSelect.get(0);
+            el.style.setProperty('--mpa-field-height', ref.getBoundingClientRect().height + 'px');
+            el.style.setProperty('--mpa-field-radius', cs.borderTopLeftRadius);
+            el.style.setProperty('--mpa-field-border', cs.borderTopColor);
+            el.style.setProperty('--mpa-field-font', cs.fontSize);
+            fitChips();
+        }
+        syncFieldMetrics();
+        $(window).on('resize', syncFieldMetrics);
+        if (document.fonts && document.fonts.ready) document.fonts.ready.then(syncFieldMetrics);
 
         $control.on('click', function (e) {
             if ($(e.target).closest('.mpa-cat-remove').length) return;

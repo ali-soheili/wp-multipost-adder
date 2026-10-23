@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.7.3
+ * Version: 1.8
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -86,6 +86,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
         'selectedCount' => __('%d selected', 'multi-post-adder'),
         'remove' => __('Remove', 'multi-post-adder'),
         'noPlaceholders' => __('No placeholders found in this post.', 'multi-post-adder'),
+        'copied' => __('Copied!', 'multi-post-adder'),
     ]);
     wp_localize_script('mpa-script', 'mpa_automation', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -510,42 +511,52 @@ function mpa_admin_page() {
             </section>
 
             <section class="mpa-automation<?php echo $automation['enabled'] ? ' is-active' : ''; ?>" id="mpa-automation">
-                <h2 class="mpa-automation-header">
-                    <label>
-                        <input type="checkbox" id="mpa-automation-enabled" <?php checked($automation['enabled']); ?>>
-                        <?php _e('Automation', 'multi-post-adder'); ?>
-                    </label>
-                </h2>
+                <label class="mpa-automation-header" for="mpa-automation-enabled">
+                    <span class="mpa-automation-icon dashicons dashicons-controls-repeat" aria-hidden="true"></span>
+                    <span class="mpa-automation-titles">
+                        <span class="mpa-automation-title"><?php _e('Automation', 'multi-post-adder'); ?></span>
+                        <span class="mpa-automation-subtitle"><?php _e('Fill placeholders in each post with one click', 'multi-post-adder'); ?></span>
+                    </span>
+                    <input type="checkbox" class="mpa-switch" id="mpa-automation-enabled" <?php checked($automation['enabled']); ?>>
+                </label>
 
                 <div class="mpa-automation-body"<?php echo $automation['enabled'] ? '' : ' hidden'; ?>>
-                    <p class="description"><?php _e('Put these placeholders in the post content (or in a preset), then use the buttons on each post to fill them in. Clicking a button again updates the value it inserted before.', 'multi-post-adder'); ?></p>
-
-                    <table class="mpa-placeholder-table">
-                        <tr>
-                            <td><code>{translated_title}</code></td>
-                            <td><?php _e('English translation of the post title (Google Translate). Button: Translate title', 'multi-post-adder'); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>{download_link}</code></td>
-                            <td><?php _e('The download link pattern below, filled in for each post. Button: Download link', 'multi-post-adder'); ?></td>
-                        </tr>
-                        <tr>
-                            <td><code>{file_name}</code></td>
-                            <td><?php _e('File name of the post’s featured image, without extension. Button: File name', 'multi-post-adder'); ?></td>
-                        </tr>
-                    </table>
-
-                    <div class="mpa-automation-field">
-                        <label for="mpa-download-pattern"><?php _e('Download link pattern', 'multi-post-adder'); ?></label>
-                        <div class="mpa-pattern-row">
-                            <input type="text" id="mpa-download-pattern" class="code" value="<?php echo esc_attr($automation['download_pattern']); ?>" placeholder="https://dl.example.com/files/{file_name}.zip" dir="ltr">
-                            <button type="button" class="button mpa-insert-token" data-token="{file_name}"><?php _e('Insert', 'multi-post-adder'); ?> <code>{file_name}</code></button>
-                        </div>
-                        <p class="description"><?php _e('Place {file_name} where each post’s image file name should go.', 'multi-post-adder'); ?></p>
+                    <div class="mpa-automation-col">
+                        <h3 class="mpa-automation-heading"><?php _e('Placeholders', 'multi-post-adder'); ?></h3>
+                        <p class="mpa-automation-hint"><?php _e('Put them in the post content or a preset. Click one to copy it.', 'multi-post-adder'); ?></p>
+                        <ul class="mpa-placeholders">
+                            <li>
+                                <span class="dashicons dashicons-translation" aria-hidden="true"></span>
+                                <button type="button" class="mpa-token" data-copy="{translated_title}">{translated_title}</button>
+                                <span class="mpa-token-desc"><?php _e('Post title translated to English', 'multi-post-adder'); ?></span>
+                            </li>
+                            <li>
+                                <span class="dashicons dashicons-download" aria-hidden="true"></span>
+                                <button type="button" class="mpa-token" data-copy="{download_link}">{download_link}</button>
+                                <span class="mpa-token-desc"><?php _e('Replaced with the download pattern', 'multi-post-adder'); ?></span>
+                            </li>
+                            <li>
+                                <span class="dashicons dashicons-media-default" aria-hidden="true"></span>
+                                <button type="button" class="mpa-token" data-copy="{file_name}">{file_name}</button>
+                                <span class="mpa-token-desc"><?php _e('Featured image file name, without extension', 'multi-post-adder'); ?></span>
+                            </li>
+                        </ul>
                     </div>
 
-                    <div class="mpa-automation-actions">
-                        <button type="button" class="button button-secondary mpa-run-all-posts"><?php _e('Run all automations on every post', 'multi-post-adder'); ?></button>
+                    <div class="mpa-automation-col">
+                        <h3 class="mpa-automation-heading"><label for="mpa-download-pattern"><?php _e('Download link pattern', 'multi-post-adder'); ?></label></h3>
+                        <p class="mpa-automation-hint"><?php _e('Any text. {file_name} is filled in for each post.', 'multi-post-adder'); ?></p>
+                        <div class="mpa-input-group">
+                            <input type="text" id="mpa-download-pattern" value="<?php echo esc_attr($automation['download_pattern']); ?>" placeholder="https://dl.example.com/{file_name}.zip" dir="ltr" spellcheck="false">
+                            <button type="button" class="mpa-insert-token" data-token="{file_name}" title="<?php esc_attr_e('Insert at cursor', 'multi-post-adder'); ?>">+ {file_name}</button>
+                        </div>
+
+                        <div class="mpa-automation-actions">
+                            <button type="button" class="button mpa-run-all-posts">
+                                <span class="dashicons dashicons-update" aria-hidden="true"></span>
+                                <?php _e('Run on all posts', 'multi-post-adder'); ?>
+                            </button>
+                        </div>
                     </div>
                 </div>
             </section>

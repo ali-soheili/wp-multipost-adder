@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.7.1\n"
+"Project-Id-Version: Multi Post Adder 1.8\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -341,4 +341,35 @@ msgstr "گوگل ترنسلیت در حال حاضر درخواست‌های ا�
 
 msgid "No placeholders found in this post."
 msgstr "هیچ جایگزینی در این نوشته پیدا نشد."
+
+msgid "Fill placeholders in each post with one click"
+msgstr "پر کردن جایگزین‌های هر نوشته با یک کلیک"
+
+msgid "Placeholders"
+msgstr "جایگزین‌ها"
+
+msgid "Put them in the post content or a preset. Click one to copy it."
+msgstr "آن‌ها را در محتوای نوشته یا قالب آماده قرار دهید. برای کپی روی هرکدام کلیک کنید."
+
+msgid "Post title translated to English"
+msgstr "عنوان نوشته ترجمه‌شده به انگلیسی"
+
+msgid "Replaced with the download pattern"
+msgstr "با الگوی دانلود جایگزین می‌شود"
+
+msgid "Featured image file name, without extension"
+msgstr "نام فایل تصویر شاخص، بدون پسوند"
+
+#, python-brace-format
+msgid "Any text. {file_name} is filled in for each post."
+msgstr "هر متنی. {file_name} برای هر نوشته پر می‌شود."
+
+msgid "Insert at cursor"
+msgstr "درج در محل نشانگر"
+
+msgid "Run on all posts"
+msgstr "اجرا روی همه نوشته‌ها"
+
+msgid "Copied!"
+msgstr "کپی شد!"
 
