@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.7\n"
+"Project-Id-Version: Multi Post Adder 1.7.1\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -335,4 +335,10 @@ msgstr "پاک کردن"
 #, php-format, python-format
 msgid "%d selected"
 msgstr "%d مورد انتخاب‌شده"
+
+msgid "Google Translate is limiting requests from this server right now (HTTP 429). Wait a few minutes and try again."
+msgstr "گوگل ترنسلیت در حال حاضر درخواست‌های این سرور را محدود کرده است (HTTP 429). چند دقیقه صبر کنید و دوباره تلاش کنید."
+
+msgid "No placeholders found in this post."
+msgstr "هیچ جایگزینی در این نوشته پیدا نشد."
 

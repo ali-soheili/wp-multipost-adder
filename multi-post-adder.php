@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.7
+ * Version: 1.7.1
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -85,10 +85,13 @@ add_action('admin_enqueue_scripts', function ($hook) {
         /* translators: %d: number of selected categories */
         'selectedCount' => __('%d selected', 'multi-post-adder'),
         'remove' => __('Remove', 'multi-post-adder'),
+        'noPlaceholders' => __('No placeholders found in this post.', 'multi-post-adder'),
     ]);
     wp_localize_script('mpa-script', 'mpa_automation', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('mpa_automation'),
+        'sourceLang' => apply_filters('mpa_translate_source_lang', 'fa'),
+        'targetLang' => apply_filters('mpa_translate_target_lang', 'en'),
         'settings' => mpa_get_automation_settings(),
     ]);
 });
@@ -116,34 +119,68 @@ add_action('wp_ajax_mpa_translate', function () {
     $cached = get_transient($cache_key);
     if ($cached !== false) wp_send_json_success(['text' => $cached]);
 
-    $url = 'https://translate.googleapis.com/translate_a/single?' . http_build_query([
-        'client' => 'gtx',
-        'sl' => $source,
-        'tl' => $target,
-        'dt' => 't',
-        'q' => $text,
-    ]);
-    $response = wp_remote_get($url, ['timeout' => 15]);
-
-    if (is_wp_error($response)) wp_send_json_error(['message' => $response->get_error_message()]);
-    if (wp_remote_retrieve_response_code($response) !== 200) {
-        /* translators: %d: HTTP status code */
-        wp_send_json_error(['message' => sprintf(__('Google Translate returned HTTP %d.', 'multi-post-adder'), wp_remote_retrieve_response_code($response))]);
-    }
-
-    $data = json_decode(wp_remote_retrieve_body($response), true);
-    $translated = '';
-    if (is_array($data) && !empty($data[0]) && is_array($data[0])) {
-        foreach ($data[0] as $segment) {
-            if (isset($segment[0]) && is_string($segment[0])) $translated .= $segment[0];
-        }
-    }
-    $translated = trim($translated);
-    if ($translated === '') wp_send_json_error(['message' => __('Translation failed.', 'multi-post-adder')]);
+    $translated = mpa_google_translate($text, $source, $target);
+    if (is_wp_error($translated)) wp_send_json_error(['message' => $translated->get_error_message()]);
 
     set_transient($cache_key, $translated, DAY_IN_SECONDS);
     wp_send_json_success(['text' => $translated]);
 });
+
+/**
+ * Server-side fallback for translation. Tries several free Google endpoints,
+ * because Google often rate-limits (HTTP 429) shared-hosting IP addresses.
+ *
+ * @return string|WP_Error
+ */
+function mpa_google_translate($text, $source, $target) {
+    $endpoints = [
+        'https://translate.googleapis.com/translate_a/single?' . http_build_query(['client' => 'gtx', 'sl' => $source, 'tl' => $target, 'dt' => 't', 'q' => $text]),
+        'https://clients5.google.com/translate_a/t?' . http_build_query(['client' => 'dict-chrome-ex', 'sl' => $source, 'tl' => $target, 'q' => $text]),
+        'https://translate.google.com/translate_a/single?' . http_build_query(['client' => 'gtx', 'sl' => $source, 'tl' => $target, 'dt' => 't', 'q' => $text]),
+    ];
+
+    $last_code = 0;
+    foreach ($endpoints as $url) {
+        $response = wp_remote_get($url, [
+            'timeout' => 12,
+            'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
+        ]);
+        if (is_wp_error($response)) continue;
+
+        $last_code = (int) wp_remote_retrieve_response_code($response);
+        if ($last_code !== 200) continue;
+
+        $translated = mpa_parse_google_translation(json_decode(wp_remote_retrieve_body($response), true));
+        if ($translated !== '') return $translated;
+    }
+
+    if ($last_code === 429) {
+        return new WP_Error('mpa_translate_429', __('Google Translate is limiting requests from this server right now (HTTP 429). Wait a few minutes and try again.', 'multi-post-adder'));
+    }
+    if ($last_code) {
+        /* translators: %d: HTTP status code */
+        return new WP_Error('mpa_translate_http', sprintf(__('Google Translate returned HTTP %d.', 'multi-post-adder'), $last_code));
+    }
+    return new WP_Error('mpa_translate_failed', __('Translation failed.', 'multi-post-adder'));
+}
+
+function mpa_parse_google_translation($data) {
+    if (!is_array($data) || !isset($data[0])) return '';
+
+    // translate_a/single: [[["Hello","سلام",...], ...], ...]
+    if (is_array($data[0]) && isset($data[0][0]) && is_array($data[0][0])) {
+        $out = '';
+        foreach ($data[0] as $segment) {
+            if (isset($segment[0]) && is_string($segment[0])) $out .= $segment[0];
+        }
+        return trim($out);
+    }
+    // translate_a/t: [["Hello","fa"]] or ["Hello"]
+    if (is_array($data[0]) && isset($data[0][0]) && is_string($data[0][0])) return trim($data[0][0]);
+    if (is_string($data[0])) return trim($data[0]);
+
+    return '';
+}
 
 // Remember the Automation box (on/off + download pattern) per user.
 add_action('wp_ajax_mpa_save_automation', function () {

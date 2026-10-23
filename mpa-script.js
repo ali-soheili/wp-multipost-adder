@@ -25,7 +25,8 @@ jQuery(document).ready(function ($) {
         notFound: '%s was not found in the content.',
         translateFailed: 'Translation failed.',
         selectedCount: '%d selected',
-        remove: 'Remove'
+        remove: 'Remove',
+        noPlaceholders: 'No placeholders found in this post.'
     }, window.mpa_i18n || {});
     const automation = window.mpa_automation || {};
 
@@ -306,24 +307,71 @@ jQuery(document).ready(function ($) {
         return labels.notFound.replace('%s', `{${key}}`);
     }
 
+    // Reads Google's free-endpoint response: [[["Hello","سلام",...], ...], ...]
+    function parseGoogleResponse(data) {
+        if (!Array.isArray(data)) return '';
+        if (Array.isArray(data[0]) && Array.isArray(data[0][0])) {
+            return data[0].map(seg => (typeof seg[0] === 'string' ? seg[0] : '')).join('').trim();
+        }
+        if (Array.isArray(data[0]) && typeof data[0][0] === 'string') return data[0][0].trim();
+        if (typeof data[0] === 'string') return data[0].trim();
+        return '';
+    }
+
+    const translationCache = {};
+
+    // 1) Ask Google straight from the browser (uses the author's own IP, which
+    //    Google rarely rate-limits). 2) If that fails, ask our server, which
+    //    tries several Google endpoints.
+    function requestTranslation(text) {
+        const source = automation.sourceLang || 'fa';
+        const target = automation.targetLang || 'en';
+        const cacheKey = `${source}|${target}|${text}`;
+        if (translationCache[cacheKey]) return $.Deferred().resolve(translationCache[cacheKey]).promise();
+
+        const deferred = $.Deferred();
+        const url = 'https://translate.googleapis.com/translate_a/single?client=gtx&dt=t'
+            + `&sl=${encodeURIComponent(source)}&tl=${encodeURIComponent(target)}&q=${encodeURIComponent(text)}`;
+
+        const viaServer = () => {
+            $.post(automation.ajaxUrl, { action: 'mpa_translate', nonce: automation.nonce, text: text })
+                .done(response => {
+                    if (response && response.success && response.data.text) {
+                        translationCache[cacheKey] = response.data.text;
+                        deferred.resolve(response.data.text);
+                    } else {
+                        deferred.reject((response && response.data && response.data.message) || labels.translateFailed);
+                    }
+                })
+                .fail(() => deferred.reject(labels.translateFailed));
+        };
+
+        if (typeof window.fetch !== 'function') {
+            viaServer();
+        } else {
+            fetch(url, { credentials: 'omit' })
+                .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+                .then(data => {
+                    const translated = parseGoogleResponse(data);
+                    if (!translated) return Promise.reject('empty');
+                    translationCache[cacheKey] = translated;
+                    deferred.resolve(translated);
+                })
+                .catch(viaServer);
+        }
+
+        return deferred.promise();
+    }
+
     function translateTitle(index) {
         const title = $(`input[name="mpa-posts[${index}][title]"]`).val().trim();
         if (!title) return $.Deferred().reject(labels.enterTitle).promise();
 
-        return $.post(automation.ajaxUrl, {
-            action: 'mpa_translate',
-            nonce: automation.nonce,
-            text: title
-        }).then(function (response) {
-            if (!response || !response.success) {
-                return $.Deferred().reject((response && response.data && response.data.message) || labels.translateFailed);
-            }
-            if (!fillPlaceholder(index, 'translated_title', response.data.text)) {
+        return requestTranslation(title).then(function (translated) {
+            if (!fillPlaceholder(index, 'translated_title', translated)) {
                 return $.Deferred().reject(notFound('translated_title'));
             }
-            return response.data.text;
-        }, function () {
-            return $.Deferred().reject(labels.translateFailed);
+            return translated;
         });
     }
 
@@ -354,10 +402,20 @@ jQuery(document).ready(function ($) {
         return result === true ? $.Deferred().resolve().promise() : $.Deferred().reject(result).promise();
     }
 
+    const stepPlaceholders = { download: 'download_link', filename: 'file_name', translate: 'translated_title' };
+
+    // A step is needed when its placeholder (or a value it inserted before) is in the content.
+    function postUses(index, key) {
+        const content = getEditorContent(`editor-${index}`) || '';
+        const previous = (lastValues[index] || {})[key];
+        return content.includes(`{${key}}`) || content.toLowerCase().includes(`%7b${key}%7d`) || (previous && content.includes(previous));
+    }
+
     function runAllOnPost(index) {
         const errors = [];
         // Download link first (it may itself contain {file_name}), then file name, then translation.
-        const steps = ['download', 'filename', 'translate'];
+        const steps = ['download', 'filename', 'translate'].filter(step => postUses(index, stepPlaceholders[step]));
+        if (!steps.length) return $.Deferred().resolve([labels.noPlaceholders]).promise();
         let chain = $.Deferred().resolve().promise();
 
         steps.forEach(step => {
@@ -370,8 +428,7 @@ jQuery(document).ready(function ($) {
         return chain.then(() => errors);
     }
 
-    $(document).on('click', '.mpa-auto-btn', function () {
-        const $btn = $(this);
+    function runButton($btn) {
         const index = $btn.data('index');
         const action = $btn.data('action');
         const $buttons = $btn.closest('.mpa-post-automation').find('.mpa-auto-btn');
@@ -383,16 +440,30 @@ jQuery(document).ready(function ($) {
             ? runAllOnPost(index).then(errors => errors.length ? $.Deferred().reject(errors.join(' ')) : null)
             : runAction(index, action);
 
-        job.then(
+        return job.then(
             () => setStatus(index, labels.done, 'success'),
             message => setStatus(index, message, 'error')
         ).always(() => $buttons.prop('disabled', false));
+    }
+
+    $(document).on('click', '.mpa-auto-btn', function () {
+        runButton($(this));
     });
 
+    // One post after another, with a short pause, so Google isn't flooded.
     $(document).on('click', '.mpa-run-all-posts', function () {
-        $('.mpa-post-automation .mpa-auto-btn[data-action="all"]').each(function () {
-            $(this).trigger('click');
+        const $all = $(this).prop('disabled', true);
+        const buttons = $('.mpa-post-automation .mpa-auto-btn[data-action="all"]').get();
+        let chain = $.Deferred().resolve().promise();
+
+        buttons.forEach((btn, i) => {
+            chain = chain.then(() => {
+                const pause = $.Deferred();
+                setTimeout(() => runButton($(btn)).always(() => pause.resolve()), i ? 400 : 0);
+                return pause.promise();
+            });
         });
+        chain.always(() => $all.prop('disabled', false));
     });
     /* ------------------------------------------------------------------
      * Category picker (multi-select with checkboxes)
