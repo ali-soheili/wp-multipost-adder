@@ -1,0 +1,6 @@
+# Files left out of the zip WordPress downloads when updating from GitHub
+.gitattributes export-ignore
+.gitignore     export-ignore
+.github        export-ignore
+MPA-banner.png export-ignore
+MPA-Thumbnail.png export-ignore

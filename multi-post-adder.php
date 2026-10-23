@@ -2,12 +2,17 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.4
+ * Version: 1.5
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
+ * Requires at least: 5.8
+ * Update URI: https://github.com/ali-soheili/wp-multipost-adder
  */
 if (!defined('ABSPATH')) exit;
+
+require_once __DIR__ . '/includes/class-mpa-github-updater.php';
+new MPA_GitHub_Updater(__FILE__);
 
 add_action('plugins_loaded', function() {
     load_plugin_textdomain('multi-post-adder', false, dirname(plugin_basename(__FILE__)) . '/languages');
@@ -91,23 +96,32 @@ function mpa_settings_page() {
     <div class="wrap mpa-settings-page">
         <h1><?php _e('MPA Settings', 'multi-post-adder'); ?></h1>
 
-        <?php if (!empty($_GET['mpa-message'])) : ?>
+        <?php if (!empty($_GET['mpa-message'])) :
+            $messages = [
+                'deleted'          => __('Preset removed.', 'multi-post-adder'),
+                'saved'            => __('Preset saved.', 'multi-post-adder'),
+                'updates-saved'    => __('Update settings saved.', 'multi-post-adder'),
+                'updates-checked'  => __('Checked GitHub for updates.', 'multi-post-adder'),
+            ];
+            $message_key = sanitize_key($_GET['mpa-message']);
+            if (isset($messages[$message_key])) : ?>
             <div class="notice notice-success is-dismissible">
-                <p>
-                    <?php
-                    echo sanitize_key($_GET['mpa-message']) === 'deleted'
-                        ? esc_html__('Preset removed.', 'multi-post-adder')
-                        : esc_html__('Preset saved.', 'multi-post-adder');
-                    ?>
-                </p>
+                <p><?php echo esc_html($messages[$message_key]); ?></p>
             </div>
-        <?php endif; ?>
+        <?php endif; endif; ?>
 
         <nav class="nav-tab-wrapper">
             <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=presets')); ?>" class="nav-tab <?php echo $active_tab === 'presets' ? 'nav-tab-active' : ''; ?>">
                 <?php _e('Presets', 'multi-post-adder'); ?>
             </a>
+            <?php if (current_user_can('update_plugins')) : ?>
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=updates')); ?>" class="nav-tab <?php echo $active_tab === 'updates' ? 'nav-tab-active' : ''; ?>">
+                <?php _e('Updates', 'multi-post-adder'); ?>
+            </a>
+            <?php endif; ?>
         </nav>
+
+        <?php if ($active_tab === 'updates' && current_user_can('update_plugins')) mpa_updates_tab(); ?>
 
         <?php if ($active_tab === 'presets') : ?>
             <div class="mpa-settings-panel">
@@ -167,6 +181,99 @@ function mpa_settings_page() {
                 <?php endif; ?>
             </div>
         <?php endif; ?>
+    </div>
+    <?php
+}
+
+function mpa_updates_tab() {
+    $settings = MPA_GitHub_Updater::get_settings();
+    $plugin   = get_file_data(__FILE__, ['Version' => 'Version']);
+    $cached   = get_site_transient(MPA_GitHub_Updater::CACHE_KEY);
+    $has_new  = is_array($cached) && !empty($cached['version']) && version_compare($cached['version'], $plugin['Version'], '>');
+    $check_url = wp_nonce_url(admin_url('admin-post.php?action=mpa_check_updates&return=settings'), 'mpa_check_updates');
+    ?>
+    <div class="mpa-settings-panel">
+        <h2><?php _e('Update status', 'multi-post-adder'); ?></h2>
+        <table class="form-table" role="presentation">
+            <tr>
+                <th scope="row"><?php _e('Installed version', 'multi-post-adder'); ?></th>
+                <td><code><?php echo esc_html($plugin['Version']); ?></code></td>
+            </tr>
+            <tr>
+                <th scope="row"><?php _e('Latest version on GitHub', 'multi-post-adder'); ?></th>
+                <td>
+                    <?php if (is_array($cached) && !empty($cached['error'])) : ?>
+                        <span style="color:#b32d2e;"><?php echo esc_html($cached['error']); ?></span>
+                    <?php elseif (is_array($cached) && !empty($cached['version'])) : ?>
+                        <code><?php echo esc_html($cached['version']); ?></code>
+                        <?php if ($has_new) : ?>
+                            &nbsp;<a class="button button-primary" href="<?php echo esc_url(self_admin_url('update-core.php')); ?>"><?php _e('Update now', 'multi-post-adder'); ?></a>
+                        <?php else : ?>
+                            &nbsp;<span style="color:#008a20;"><?php _e('You are up to date.', 'multi-post-adder'); ?></span>
+                        <?php endif; ?>
+                    <?php else : ?>
+                        <em><?php _e('Not checked yet.', 'multi-post-adder'); ?></em>
+                    <?php endif; ?>
+                    <?php if (is_array($cached) && !empty($cached['checked_at'])) : ?>
+                        <p class="description">
+                            <?php
+                            /* translators: %s: human readable time difference, e.g. "5 mins" */
+                            printf(esc_html__('Last checked %s ago.', 'multi-post-adder'), esc_html(human_time_diff($cached['checked_at'])));
+                            ?>
+                        </p>
+                    <?php endif; ?>
+                </td>
+            </tr>
+        </table>
+        <p><a class="button" href="<?php echo esc_url($check_url); ?>"><?php _e('Check for updates now', 'multi-post-adder'); ?></a></p>
+
+        <hr class="mpa-presets-divider">
+
+        <h2><?php _e('GitHub source', 'multi-post-adder'); ?></h2>
+        <form method="post">
+            <?php wp_nonce_field('mpa_save_updates', 'mpa_updates_nonce'); ?>
+            <input type="hidden" name="mpa-settings-action" value="save_updates">
+            <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><label for="mpa-update-repo"><?php _e('Repository', 'multi-post-adder'); ?></label></th>
+                    <td>
+                        <input type="text" id="mpa-update-repo" name="mpa-update-repo" class="regular-text" value="<?php echo esc_attr($settings['repo']); ?>" placeholder="owner/repository">
+                        <p class="description"><?php _e('Format: owner/repository', 'multi-post-adder'); ?></p>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><?php _e('Update source', 'multi-post-adder'); ?></th>
+                    <td>
+                        <fieldset>
+                            <label>
+                                <input type="radio" name="mpa-update-source" value="branch" <?php checked($settings['source'], 'branch'); ?>>
+                                <?php _e('Branch: offer an update whenever the Version in the plugin file on the branch is higher', 'multi-post-adder'); ?>
+                            </label><br>
+                            <label>
+                                <input type="radio" name="mpa-update-source" value="release" <?php checked($settings['source'], 'release'); ?>>
+                                <?php _e('Releases: offer an update only when a new GitHub Release is published', 'multi-post-adder'); ?>
+                            </label>
+                        </fieldset>
+                    </td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="mpa-update-branch"><?php _e('Branch', 'multi-post-adder'); ?></label></th>
+                    <td><input type="text" id="mpa-update-branch" name="mpa-update-branch" class="regular-text" value="<?php echo esc_attr($settings['branch']); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="mpa-update-token"><?php _e('Access token', 'multi-post-adder'); ?></label></th>
+                    <td>
+                        <input type="password" id="mpa-update-token" name="mpa-update-token" class="regular-text" value="" autocomplete="new-password"
+                               placeholder="<?php echo $settings['token'] ? esc_attr__('Saved — leave empty to keep', 'multi-post-adder') : ''; ?>">
+                        <?php if ($settings['token']) : ?>
+                            <br><label><input type="checkbox" name="mpa-update-token-remove" value="1"> <?php _e('Remove saved token', 'multi-post-adder'); ?></label>
+                        <?php endif; ?>
+                        <p class="description"><?php _e('Only needed if the repository is private. Use a fine-grained token with read-only “Contents” access to this repository.', 'multi-post-adder'); ?></p>
+                    </td>
+                </tr>
+            </table>
+            <button type="submit" class="button button-primary"><?php _e('Save Changes', 'multi-post-adder'); ?></button>
+        </form>
     </div>
     <?php
 }
@@ -231,6 +338,53 @@ function mpa_admin_page() {
     </div>
     <?php
 }
+
+// Save GitHub update settings.
+add_action('admin_init', function () {
+    if (empty($_POST['mpa-settings-action']) || $_POST['mpa-settings-action'] !== 'save_updates') return;
+    if (!current_user_can('update_plugins') || !current_user_can('manage_options')) return;
+    if (empty($_POST['mpa_updates_nonce']) || !wp_verify_nonce(sanitize_text_field(wp_unslash($_POST['mpa_updates_nonce'])), 'mpa_save_updates')) return;
+
+    $current = MPA_GitHub_Updater::get_settings();
+
+    $repo = isset($_POST['mpa-update-repo']) ? trim(sanitize_text_field(wp_unslash($_POST['mpa-update-repo']))) : '';
+    $repo = preg_replace('#^https?://github\.com/#i', '', $repo);
+    $repo = preg_replace('#\.git$#i', '', trim($repo, '/ '));
+    if (!preg_match('#^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$#', $repo)) $repo = MPA_GitHub_Updater::DEFAULT_REPO;
+
+    $branch = isset($_POST['mpa-update-branch']) ? trim(sanitize_text_field(wp_unslash($_POST['mpa-update-branch']))) : '';
+    $source = (isset($_POST['mpa-update-source']) && $_POST['mpa-update-source'] === 'release') ? 'release' : 'branch';
+
+    $token = $current['token'];
+    if (!empty($_POST['mpa-update-token-remove'])) $token = '';
+    if (!empty($_POST['mpa-update-token'])) $token = trim(sanitize_text_field(wp_unslash($_POST['mpa-update-token'])));
+
+    MPA_GitHub_Updater::save_settings([
+        'repo'   => $repo,
+        'branch' => $branch ?: MPA_GitHub_Updater::DEFAULT_BRANCH,
+        'source' => $source,
+        'token'  => $token,
+    ]);
+
+    wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=updates&mpa-message=updates-saved'));
+    exit;
+});
+
+// "Check for updates now" (settings tab and Plugins screen link).
+add_action('admin_post_mpa_check_updates', function () {
+    if (!current_user_can('update_plugins')) wp_die(esc_html__('Sorry, you are not allowed to update plugins.', 'multi-post-adder'));
+    check_admin_referer('mpa_check_updates');
+
+    MPA_GitHub_Updater::clear_cache();
+    wp_update_plugins();
+
+    if (isset($_GET['return']) && $_GET['return'] === 'settings') {
+        wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=updates&mpa-message=updates-checked'));
+    } else {
+        wp_redirect(self_admin_url('plugins.php'));
+    }
+    exit;
+});
 
 add_action('admin_init', function () {
     if (empty($_POST['mpa-settings-action'])) return;

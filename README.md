@@ -20,6 +20,7 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 - Publish posts immediately or save them as drafts
 - Basic admin styling for a cleaner editing workflow
 - Translation-ready plugin structure
+- One-click updates from GitHub right inside the WordPress dashboard
 
 ## Technologies Used
 
@@ -47,6 +48,29 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 5. Fill in each post title, content, featured image, and custom fields.
 6. Click **Publish Posts** to publish them immediately, or **Save as Draft** to save them for later editing.
 
+## Updates from GitHub
+
+The plugin updates itself from this GitHub repository, just like plugins from wordpress.org: new versions appear under **Dashboard → Updates** and **Plugins**, with an **Update now** link and support for WordPress auto-updates.
+
+### Publishing a new version
+
+1. Make your changes.
+2. Increase the `Version:` number in the header of `multi-post-adder.php` (e.g. `1.5` → `1.6`). **WordPress only offers an update when this number goes up.**
+3. Commit and push to `main`.
+
+Sites check GitHub roughly every 12 hours. To check immediately, use **Settings → MPA Settings → Updates → Check for updates now**, the **Check for updates** link under the plugin on the Plugins screen, or **Dashboard → Updates → Check again**.
+
+### Settings (Settings → MPA Settings → Updates)
+
+| Setting | Description |
+| --- | --- |
+| Repository | `owner/repository` to update from. Default: `ali-soheili/wp-multipost-adder`. |
+| Update source | **Branch** (default): update when the version on the branch is higher. **Releases**: update only when you publish a GitHub Release; the tag (`v1.6` or `1.6`) is the version, and an attached `.zip` is used if present. |
+| Branch | Branch to follow in Branch mode. Default: `main`. |
+| Access token | Only for private repositories. Create a fine-grained token with read-only **Contents** access to this repo. |
+
+Requires WordPress 5.8 or newer (uses the `Update URI` plugin header). The plugin folder name on the site is kept as-is during updates.
+
 ## Project Structure
 
 ```text
@@ -54,5 +78,8 @@ wp-multipost-adder/
 ├── multi-post-adder.php   # Main WordPress plugin file
 ├── mpa-script.js          # Admin-side JavaScript for dynamic post fields
 ├── mpa-style.css          # Admin page styling
+├── includes/
+│   └── class-mpa-github-updater.php  # Updates from GitHub
+├── languages/             # Translations (fa_IR)
 ├── LICENSE                # Proprietary License
 └── README.md

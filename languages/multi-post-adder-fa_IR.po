@@ -1,17 +1,18 @@
+
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.4\n"
+"Project-Id-Version: Multi Post Adder 1.5\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
 "Last-Translator: \n"
-"Language-Team: Persian\n"
 "Language: fa_IR\n"
+"Language-Team: Persian\n"
+"Plural-Forms: nplurals=1; plural=0;\n"
 "MIME-Version: 1.0\n"
-"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Type: text/plain; charset=utf-8\n"
 "Content-Transfer-Encoding: 8bit\n"
-"X-Generator: Codex\n"
-"X-Domain: multi-post-adder\n"
+"Generated-By: Babel 2.18.0\n"
 
 msgid "Add Multiple Posts"
 msgstr "افزودن چندین نوشته"
@@ -120,3 +121,121 @@ msgstr "انتخاب یا بارگذاری تصویر"
 
 msgid "Use this image"
 msgstr "استفاده از این تصویر"
+
+msgid "Update settings saved."
+msgstr "تنظیمات به‌روزرسانی ذخیره شد."
+
+msgid "Checked GitHub for updates."
+msgstr "به‌روزرسانی‌ها از گیت‌هاب بررسی شد."
+
+msgid "Updates"
+msgstr "به‌روزرسانی‌ها"
+
+msgid "Update status"
+msgstr "وضعیت به‌روزرسانی"
+
+msgid "Installed version"
+msgstr "نسخه نصب‌شده"
+
+msgid "Latest version on GitHub"
+msgstr "آخرین نسخه در گیت‌هاب"
+
+msgid "Update now"
+msgstr "اکنون به‌روزرسانی کن"
+
+msgid "You are up to date."
+msgstr "افزونه به‌روز است."
+
+msgid "Not checked yet."
+msgstr "هنوز بررسی نشده است."
+
+#, php-format, python-format
+msgid "Last checked %s ago."
+msgstr "آخرین بررسی: %s پیش."
+
+msgid "Check for updates now"
+msgstr "بررسی به‌روزرسانی‌ها"
+
+msgid "Check for updates"
+msgstr "بررسی به‌روزرسانی"
+
+msgid "GitHub source"
+msgstr "منبع گیت‌هاب"
+
+msgid "Repository"
+msgstr "مخزن"
+
+msgid "Format: owner/repository"
+msgstr "قالب: owner/repository"
+
+msgid "Update source"
+msgstr "منبع به‌روزرسانی"
+
+msgid "Branch: offer an update whenever the Version in the plugin file on the branch is higher"
+msgstr "شاخه: هر زمان نسخه (Version) در فایل افزونه روی شاخه بالاتر باشد، به‌روزرسانی پیشنهاد شود"
+
+msgid "Releases: offer an update only when a new GitHub Release is published"
+msgstr "انتشارها: فقط زمانی که یک Release جدید در گیت‌هاب منتشر شود، به‌روزرسانی پیشنهاد شود"
+
+msgid "Branch"
+msgstr "شاخه"
+
+msgid "Access token"
+msgstr "توکن دسترسی"
+
+msgid "Saved — leave empty to keep"
+msgstr "ذخیره شده — برای حفظ، خالی بگذارید"
+
+msgid "Remove saved token"
+msgstr "حذف توکن ذخیره‌شده"
+
+msgid "Only needed if the repository is private. Use a fine-grained token with read-only “Contents” access to this repository."
+msgstr "فقط برای مخزن خصوصی لازم است. از یک توکن fine-grained با دسترسی فقط‌خواندنی «Contents» به این مخزن استفاده کنید."
+
+msgid "Sorry, you are not allowed to update plugins."
+msgstr "متأسفیم، شما اجازه به‌روزرسانی افزونه‌ها را ندارید."
+
+msgid "Repository, branch or release not found. If the repository is private, add an access token."
+msgstr "مخزن، شاخه یا انتشار پیدا نشد. اگر مخزن خصوصی است، توکن دسترسی اضافه کنید."
+
+msgid "The GitHub access token is invalid or expired."
+msgstr "توکن دسترسی گیت‌هاب نامعتبر یا منقضی است."
+
+msgid "GitHub API rate limit reached. Try again later or add an access token."
+msgstr "محدودیت درخواست API گیت‌هاب پر شده است. بعداً دوباره تلاش کنید یا توکن دسترسی اضافه کنید."
+
+#, php-format
+msgid "GitHub returned HTTP %1$d. %2$s"
+msgstr "گیت‌هاب کد HTTP %1$d برگرداند. %2$s"
+
+msgid "Could not read the Version header from the plugin file on GitHub."
+msgstr "خواندن سرآیند Version از فایل افزونه در گیت‌هاب ممکن نشد."
+
+msgid "Recent changes"
+msgstr "تغییرات اخیر"
+
+msgid "No published release found on GitHub."
+msgstr "هیچ انتشار منتشرشده‌ای در گیت‌هاب پیدا نشد."
+
+msgid "View on GitHub"
+msgstr "مشاهده در گیت‌هاب"
+
+msgid "See the GitHub repository for changes."
+msgstr "برای مشاهده تغییرات به مخزن گیت‌هاب مراجعه کنید."
+
+msgid "GitHub did not return a download location."
+msgstr "گیت‌هاب آدرس دانلود را برنگرداند."
+
+msgid "Could not save the downloaded update."
+msgstr "ذخیره فایل به‌روزرسانی دانلودشده ممکن نشد."
+
+#, php-format, python-format
+msgid "Download from GitHub failed (HTTP %d)."
+msgstr "دانلود از گیت‌هاب ناموفق بود (HTTP %d)."
+
+msgid "The downloaded package does not contain the Multi Post Adder plugin file."
+msgstr "بسته دانلودشده شامل فایل افزونه Multi Post Adder نیست."
+
+msgid "Could not rename the update folder."
+msgstr "تغییر نام پوشه به‌روزرسانی ممکن نشد."
+
