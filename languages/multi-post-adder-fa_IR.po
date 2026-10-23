@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.5\n"
+"Project-Id-Version: Multi Post Adder 1.7\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -238,4 +238,101 @@ msgstr "بسته دانلودشده شامل فایل افزونه Multi Post Ad
 
 msgid "Could not rename the update folder."
 msgstr "تغییر نام پوشه به‌روزرسانی ممکن نشد."
+
+msgid "Automation:"
+msgstr "اتوماسیون:"
+
+msgid "Automation"
+msgstr "اتوماسیون"
+
+msgid "Translate title"
+msgstr "ترجمه عنوان"
+
+msgid "Download link"
+msgstr "لینک دانلود"
+
+msgid "File name"
+msgstr "نام فایل"
+
+msgid "Run all"
+msgstr "اجرای همه"
+
+msgid "Working…"
+msgstr "در حال انجام…"
+
+msgid "Updated."
+msgstr "به‌روزرسانی شد."
+
+msgid "Enter a title first."
+msgstr "ابتدا عنوان را وارد کنید."
+
+msgid "Select a featured image first."
+msgstr "ابتدا تصویر شاخص را انتخاب کنید."
+
+msgid "Enter a download link pattern in the Automation box first."
+msgstr "ابتدا الگوی لینک دانلود را در کادر اتوماسیون وارد کنید."
+
+#, php-format, python-format
+msgid "%s was not found in the content."
+msgstr "%s در محتوا پیدا نشد."
+
+msgid "Translation failed."
+msgstr "ترجمه ناموفق بود."
+
+msgid "Not allowed."
+msgstr "مجاز نیست."
+
+#, php-format, python-format
+msgid "Google Translate returned HTTP %d."
+msgstr "گوگل ترنسلیت کد HTTP %d برگرداند."
+
+msgid "Put these placeholders in the post content (or in a preset), then use the buttons on each post to fill them in. Clicking a button again updates the value it inserted before."
+msgstr "این جایگزین‌ها را در محتوای نوشته (یا در قالب آماده) قرار دهید، سپس با دکمه‌های هر نوشته آن‌ها را پر کنید. کلیک دوباره روی هر دکمه، مقداری را که قبلاً درج کرده به‌روزرسانی می‌کند."
+
+msgid "English translation of the post title (Google Translate). Button: Translate title"
+msgstr "ترجمه انگلیسی عنوان نوشته (گوگل ترنسلیت). دکمه: ترجمه عنوان"
+
+msgid "The download link pattern below, filled in for each post. Button: Download link"
+msgstr "الگوی لینک دانلود زیر، تکمیل‌شده برای هر نوشته. دکمه: لینک دانلود"
+
+msgid "File name of the post’s featured image, without extension. Button: File name"
+msgstr "نام فایل تصویر شاخص نوشته، بدون پسوند. دکمه: نام فایل"
+
+msgid "Download link pattern"
+msgstr "الگوی لینک دانلود"
+
+msgid "Insert"
+msgstr "درج"
+
+#, python-brace-format
+msgid "Place {file_name} where each post’s image file name should go."
+msgstr "{file_name} را جایی قرار دهید که نام فایل تصویر هر نوشته باید بیاید."
+
+msgid "Run all automations on every post"
+msgstr "اجرای همه اتوماسیون‌ها روی همه نوشته‌ها"
+
+msgid "Categories:"
+msgstr "دسته‌بندی‌ها:"
+
+msgid "Select categories"
+msgstr "انتخاب دسته‌بندی‌ها"
+
+msgid "Search categories…"
+msgstr "جستجوی دسته‌بندی‌ها…"
+
+msgid "Search categories"
+msgstr "جستجوی دسته‌بندی‌ها"
+
+msgid "No categories found."
+msgstr "هیچ دسته‌بندی‌ای پیدا نشد."
+
+msgid "No matching categories."
+msgstr "دسته‌بندی منطبقی پیدا نشد."
+
+msgid "Clear"
+msgstr "پاک کردن"
+
+#, php-format, python-format
+msgid "%d selected"
+msgstr "%d مورد انتخاب‌شده"
 

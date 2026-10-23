@@ -11,8 +11,27 @@ jQuery(document).ready(function ($) {
         customFields: 'Custom Fields:',
         addCustomField: 'Add Custom Field',
         selectOrUploadImage: 'Select or Upload Image',
-        useThisImage: 'Use this image'
+        useThisImage: 'Use this image',
+        automation: 'Automation:',
+        translateTitle: 'Translate title',
+        downloadLink: 'Download link',
+        fileName: 'File name',
+        runAll: 'Run all',
+        working: 'Working…',
+        done: 'Updated.',
+        enterTitle: 'Enter a title first.',
+        selectImage: 'Select a featured image first.',
+        enterPattern: 'Enter a download link pattern in the Automation box first.',
+        notFound: '%s was not found in the content.',
+        translateFailed: 'Translation failed.',
+        selectedCount: '%d selected',
+        remove: 'Remove'
     }, window.mpa_i18n || {});
+    const automation = window.mpa_automation || {};
+
+    // Automation: values inserted per post, so clicking a button again can update them.
+    // lastValues[postIndex][placeholderKey] = 'inserted text'
+    let lastValues = {};
 
     function createCustomFieldHTML(fieldName) {
         let options = `<option value="">${labels.selectKey}</option>`;
@@ -33,6 +52,22 @@ jQuery(document).ready(function ($) {
         return `
         <div class="mpa-post-block">
             <h3 class="mpa-post-number">${i + 1}</h3>
+            <div class="mpa-post-automation" data-index="${i}">
+                <span class="mpa-post-automation-label">${labels.automation}</span>
+                <button type="button" class="button mpa-auto-btn" data-action="translate" data-index="${i}">
+                    <span class="dashicons dashicons-translation"></span> ${labels.translateTitle}
+                </button>
+                <button type="button" class="button mpa-auto-btn" data-action="download" data-index="${i}">
+                    <span class="dashicons dashicons-download"></span> ${labels.downloadLink}
+                </button>
+                <button type="button" class="button mpa-auto-btn" data-action="filename" data-index="${i}">
+                    <span class="dashicons dashicons-format-image"></span> ${labels.fileName}
+                </button>
+                <button type="button" class="button button-primary mpa-auto-btn" data-action="all" data-index="${i}">
+                    <span class="dashicons dashicons-update"></span> ${labels.runAll}
+                </button>
+                <span class="mpa-auto-status" id="mpa-auto-status-${i}" aria-live="polite"></span>
+            </div>
             <p class="mpa-field-row mpa-title-row">
                 <label>${labels.title}</label>
                 <input Style="width:stretch;" type="text" name="mpa-posts[${i}][title]">
@@ -90,6 +125,7 @@ jQuery(document).ready(function ($) {
     function applySelectedPreset() {
         const content = getSelectedPresetContent();
         if (!content) return;
+        lastValues = {};
 
         $('#mpa-posts-container textarea').each(function () {
             setEditorContent(this.id, content);
@@ -100,6 +136,7 @@ jQuery(document).ready(function ($) {
         const count = parseInt($(this).val());
         const container = $('#mpa-posts-container');
         container.empty();
+        lastValues = {};
 
         for (let i = 0; i < count; i++) {
             container.append(createPostBlock(i));
@@ -130,6 +167,9 @@ jQuery(document).ready(function ($) {
         frame.on('select', function () {
             const attachment = frame.state().get('selection').first().toJSON();
             imageInput.val(attachment.id);
+            // Original file name (before WordPress adds "-scaled"), without extension.
+            const file = attachment.originalImageName || attachment.filename || '';
+            imageInput.attr('data-filename', file.replace(/\.[^.]+$/, ''));
             preview.html(`<img src="${attachment.url}" style="max-width:100px;">`);
         });
 
@@ -148,4 +188,340 @@ jQuery(document).ready(function ($) {
         const metaIndex = container.children().length;
         container.append(createCustomFieldHTML(`mpa-global-meta[${metaIndex}]`));
     });
+
+    /* ------------------------------------------------------------------
+     * Automation
+     * ---------------------------------------------------------------- */
+
+    const $form = $('#mpa-form');
+    const $automationBox = $('#mpa-automation');
+    const $automationToggle = $('#mpa-automation-enabled');
+    const $pattern = $('#mpa-download-pattern');
+
+    function setAutomationActive(active) {
+        $automationBox.toggleClass('is-active', active);
+        $automationBox.find('.mpa-automation-body').prop('hidden', !active);
+        $form.toggleClass('mpa-automation-on', active);
+    }
+
+    let saveTimer = null;
+    function saveAutomationSettings() {
+        if (!automation.ajaxUrl) return;
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(function () {
+            $.post(automation.ajaxUrl, {
+                action: 'mpa_save_automation',
+                nonce: automation.nonce,
+                enabled: $automationToggle.is(':checked') ? 1 : 0,
+                download_pattern: $pattern.val()
+            });
+        }, 400);
+    }
+
+    setAutomationActive($automationToggle.is(':checked'));
+    $automationToggle.on('change', function () {
+        setAutomationActive(this.checked);
+        saveAutomationSettings();
+    });
+    $pattern.on('change input', saveAutomationSettings);
+
+    // Insert {file_name} at the cursor position in the pattern field.
+    $(document).on('click', '.mpa-insert-token', function () {
+        const token = $(this).data('token');
+        const input = $pattern.get(0);
+        const start = input.selectionStart ?? input.value.length;
+        const end = input.selectionEnd ?? input.value.length;
+        input.value = input.value.slice(0, start) + token + input.value.slice(end);
+        input.focus();
+        input.setSelectionRange(start + token.length, start + token.length);
+        saveAutomationSettings();
+    });
+
+    function escapeHtml(text) {
+        return String(text)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    function getEditorContent(id) {
+        if (typeof tinyMCE !== 'undefined') {
+            const editor = tinyMCE.get(id);
+            if (editor && !editor.isHidden()) return editor.getContent();
+        }
+        return $(`#${id}`).val();
+    }
+
+    /**
+     * Replace {key} in the post content with value. If the placeholder is
+     * gone because it was filled before, replace the previously inserted value.
+     */
+    function fillPlaceholder(index, key, rawValue) {
+        const editorId = `editor-${index}`;
+        const value = escapeHtml(rawValue);
+        let content = getEditorContent(editorId) || '';
+
+        // Editors may URL-encode braces inside links (href="%7Bdownload_link%7D").
+        const tokens = [`{${key}}`, `%7B${key}%7D`, `%7b${key}%7d`];
+        const previous = (lastValues[index] || {})[key];
+
+        let found = false;
+        tokens.forEach(token => {
+            if (content.includes(token)) {
+                content = content.split(token).join(value);
+                found = true;
+            }
+        });
+        if (!found && previous && previous !== value && content.includes(previous)) {
+            content = content.split(previous).join(value);
+            found = true;
+        }
+        if (!found && content.includes(value)) {
+            // Already up to date (e.g. updated together with another value).
+            lastValues[index] = Object.assign({}, lastValues[index], { [key]: value });
+            return true;
+        }
+        if (!found) return false;
+
+        setEditorContent(editorId, content);
+        lastValues[index] = Object.assign({}, lastValues[index], { [key]: value });
+        return true;
+    }
+
+    function getFileName(index) {
+        return $(`#mpa-image-${index}`).attr('data-filename') || '';
+    }
+
+    function setStatus(index, message, type) {
+        const $status = $(`#mpa-auto-status-${index}`);
+        $status.removeClass('is-error is-success is-working').addClass(type ? `is-${type}` : '').text(message || '');
+        clearTimeout($status.data('timer'));
+        if (type === 'success') {
+            $status.data('timer', setTimeout(() => $status.text('').removeClass('is-success'), 4000));
+        }
+    }
+
+    function notFound(key) {
+        return labels.notFound.replace('%s', `{${key}}`);
+    }
+
+    function translateTitle(index) {
+        const title = $(`input[name="mpa-posts[${index}][title]"]`).val().trim();
+        if (!title) return $.Deferred().reject(labels.enterTitle).promise();
+
+        return $.post(automation.ajaxUrl, {
+            action: 'mpa_translate',
+            nonce: automation.nonce,
+            text: title
+        }).then(function (response) {
+            if (!response || !response.success) {
+                return $.Deferred().reject((response && response.data && response.data.message) || labels.translateFailed);
+            }
+            if (!fillPlaceholder(index, 'translated_title', response.data.text)) {
+                return $.Deferred().reject(notFound('translated_title'));
+            }
+            return response.data.text;
+        }, function () {
+            return $.Deferred().reject(labels.translateFailed);
+        });
+    }
+
+    function applyDownloadLink(index) {
+        const pattern = ($pattern.val() || '').trim();
+        if (!pattern) return labels.enterPattern;
+
+        let link = pattern;
+        if (pattern.includes('{file_name}')) {
+            const fileName = getFileName(index);
+            if (!fileName) return labels.selectImage;
+            link = pattern.split('{file_name}').join(fileName);
+        }
+        return fillPlaceholder(index, 'download_link', link) ? true : notFound('download_link');
+    }
+
+    function applyFileName(index) {
+        const fileName = getFileName(index);
+        if (!fileName) return labels.selectImage;
+        return fillPlaceholder(index, 'file_name', fileName) ? true : notFound('file_name');
+    }
+
+    // Runs one action on one post. Resolves with nothing, rejects with an error message.
+    function runAction(index, action) {
+        if (action === 'translate') return translateTitle(index);
+
+        const result = action === 'download' ? applyDownloadLink(index) : applyFileName(index);
+        return result === true ? $.Deferred().resolve().promise() : $.Deferred().reject(result).promise();
+    }
+
+    function runAllOnPost(index) {
+        const errors = [];
+        // Download link first (it may itself contain {file_name}), then file name, then translation.
+        const steps = ['download', 'filename', 'translate'];
+        let chain = $.Deferred().resolve().promise();
+
+        steps.forEach(step => {
+            chain = chain.then(() => runAction(index, step).then(null, msg => {
+                errors.push(msg);
+                return $.Deferred().resolve().promise();
+            }));
+        });
+
+        return chain.then(() => errors);
+    }
+
+    $(document).on('click', '.mpa-auto-btn', function () {
+        const $btn = $(this);
+        const index = $btn.data('index');
+        const action = $btn.data('action');
+        const $buttons = $btn.closest('.mpa-post-automation').find('.mpa-auto-btn');
+
+        $buttons.prop('disabled', true);
+        setStatus(index, labels.working, 'working');
+
+        const job = action === 'all'
+            ? runAllOnPost(index).then(errors => errors.length ? $.Deferred().reject(errors.join(' ')) : null)
+            : runAction(index, action);
+
+        job.then(
+            () => setStatus(index, labels.done, 'success'),
+            message => setStatus(index, message, 'error')
+        ).always(() => $buttons.prop('disabled', false));
+    });
+
+    $(document).on('click', '.mpa-run-all-posts', function () {
+        $('.mpa-post-automation .mpa-auto-btn[data-action="all"]').each(function () {
+            $(this).trigger('click');
+        });
+    });
+    /* ------------------------------------------------------------------
+     * Category picker (multi-select with checkboxes)
+     * ---------------------------------------------------------------- */
+
+    const $catSelect = $('#mpa-cat-select');
+    if ($catSelect.length) {
+        const $control = $catSelect.find('.mpa-cat-control');
+        const $panel = $catSelect.find('.mpa-cat-panel');
+        const $search = $catSelect.find('.mpa-cat-search');
+        const $chips = $catSelect.find('.mpa-cat-chips');
+        const $boxes = $catSelect.find('input[type="checkbox"]');
+        const names = {};
+        $boxes.each(function () { names[this.value] = $(this).data('name'); });
+
+        function openPanel() {
+            $panel.prop('hidden', false);
+            $control.attr('aria-expanded', 'true');
+            $catSelect.addClass('is-open');
+            setTimeout(() => $search.trigger('focus'), 0);
+        }
+
+        function closePanel() {
+            $panel.prop('hidden', true);
+            $control.attr('aria-expanded', 'false');
+            $catSelect.removeClass('is-open');
+        }
+
+        function pathOf(box) {
+            return String($(box).data('path')).split(',');
+        }
+
+        // Selected categories as chips. A selected parent with a selected
+        // descendant is shown inside that descendant's chip: Parent › Child.
+        function renderChips() {
+            const selected = $boxes.filter(':checked').get();
+            const selectedIds = new Set(selected.map(b => b.value));
+            const covered = new Set();
+            selected.forEach(box => pathOf(box).slice(0, -1).forEach(id => covered.add(id)));
+
+            $chips.empty();
+            selected.filter(box => !covered.has(box.value)).forEach(box => {
+                const $chip = $('<span class="mpa-cat-chip"></span>');
+                pathOf(box).forEach((id, i, arr) => {
+                    if (i > 0) $chip.append('<span class="mpa-cat-sep" aria-hidden="true">›</span>');
+                    $('<span></span>')
+                        .addClass(selectedIds.has(id) ? 'mpa-cat-part' : 'mpa-cat-part is-muted')
+                        .text(names[id] || '')
+                        .appendTo($chip);
+                });
+                $('<button type="button" class="mpa-cat-remove">×</button>')
+                    .attr('data-id', box.value)
+                    .attr('aria-label', `${labels.remove}: ${names[box.value] || ''}`)
+                    .appendTo($chip);
+                $chips.append($chip);
+            });
+
+            $catSelect.toggleClass('has-value', selected.length > 0);
+            $catSelect.find('.mpa-cat-count').text(selected.length ? labels.selectedCount.replace('%d', selected.length) : '');
+            $catSelect.find('.mpa-cat-option').each(function () {
+                $(this).toggleClass('is-checked', $(this).find('input').is(':checked'));
+            });
+        }
+
+        $control.on('click', function (e) {
+            if ($(e.target).closest('.mpa-cat-remove').length) return;
+            $panel.prop('hidden') ? openPanel() : closePanel();
+        });
+
+        $control.on('keydown', function (e) {
+            if (e.key === 'Enter' || e.key === ' ' || e.key === 'ArrowDown') {
+                e.preventDefault();
+                openPanel();
+            }
+        });
+
+        $catSelect.on('click', '.mpa-cat-remove', function (e) {
+            e.stopPropagation();
+            // Removing a "Parent › Child" chip unticks the child; the parent then gets its own chip.
+            $boxes.filter(`[value="${$(this).data('id')}"]`).prop('checked', false);
+            renderChips();
+        });
+
+        $boxes.on('change', renderChips);
+
+        $catSelect.find('.mpa-cat-clear').on('click', function () {
+            $boxes.prop('checked', false);
+            renderChips();
+            $search.trigger('focus');
+        });
+
+        // Filter: keep matches and their ancestors visible.
+        $search.on('input', function () {
+            const term = this.value.trim().toLowerCase();
+            const $items = $catSelect.find('.mpa-cat-item');
+
+            if (!term) {
+                $items.prop('hidden', false);
+                $catSelect.find('.mpa-cat-no-match').prop('hidden', true);
+                return;
+            }
+
+            $items.prop('hidden', true);
+            let matches = 0;
+            $items.each(function () {
+                const name = String($(this).children('.mpa-cat-option').find('input').data('name')).toLowerCase();
+                if (name.includes(term)) {
+                    matches++;
+                    $(this).prop('hidden', false).parents('.mpa-cat-item').prop('hidden', false);
+                }
+            });
+            $catSelect.find('.mpa-cat-no-match').prop('hidden', matches > 0);
+        });
+
+        $search.on('keydown', function (e) {
+            if (e.key === 'Enter') e.preventDefault(); // Don't submit the form.
+        });
+
+        $(document).on('mousedown', function (e) {
+            if (!$catSelect.is(e.target) && !$catSelect.has(e.target).length) closePanel();
+        });
+
+        $(document).on('keydown', function (e) {
+            if (e.key === 'Escape' && !$panel.prop('hidden')) {
+                closePanel();
+                $control.trigger('focus');
+            }
+        });
+
+        renderChips();
+    }
 });

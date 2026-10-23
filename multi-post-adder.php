@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.5
+ * Version: 1.7
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -69,7 +69,92 @@ add_action('admin_enqueue_scripts', function ($hook) {
         'addCustomField' => __('Add Custom Field', 'multi-post-adder'),
         'selectOrUploadImage' => __('Select or Upload Image', 'multi-post-adder'),
         'useThisImage' => __('Use this image', 'multi-post-adder'),
+        'automation' => __('Automation:', 'multi-post-adder'),
+        'translateTitle' => __('Translate title', 'multi-post-adder'),
+        'downloadLink' => __('Download link', 'multi-post-adder'),
+        'fileName' => __('File name', 'multi-post-adder'),
+        'runAll' => __('Run all', 'multi-post-adder'),
+        'working' => __('Working…', 'multi-post-adder'),
+        'done' => __('Updated.', 'multi-post-adder'),
+        'enterTitle' => __('Enter a title first.', 'multi-post-adder'),
+        'selectImage' => __('Select a featured image first.', 'multi-post-adder'),
+        'enterPattern' => __('Enter a download link pattern in the Automation box first.', 'multi-post-adder'),
+        /* translators: %s: placeholder such as {file_name} */
+        'notFound' => __('%s was not found in the content.', 'multi-post-adder'),
+        'translateFailed' => __('Translation failed.', 'multi-post-adder'),
+        /* translators: %d: number of selected categories */
+        'selectedCount' => __('%d selected', 'multi-post-adder'),
+        'remove' => __('Remove', 'multi-post-adder'),
     ]);
+    wp_localize_script('mpa-script', 'mpa_automation', [
+        'ajaxUrl' => admin_url('admin-ajax.php'),
+        'nonce' => wp_create_nonce('mpa_automation'),
+        'settings' => mpa_get_automation_settings(),
+    ]);
+});
+
+function mpa_get_automation_settings() {
+    $saved = get_user_meta(get_current_user_id(), 'mpa_automation', true);
+    return wp_parse_args(is_array($saved) ? $saved : [], [
+        'enabled' => false,
+        'download_pattern' => '',
+    ]);
+}
+
+// Translate a post title (Persian → English) with Google Translate's free endpoint.
+add_action('wp_ajax_mpa_translate', function () {
+    check_ajax_referer('mpa_automation', 'nonce');
+    if (!current_user_can('edit_posts')) wp_send_json_error(['message' => __('Not allowed.', 'multi-post-adder')], 403);
+
+    $text = isset($_POST['text']) ? trim(sanitize_text_field(wp_unslash($_POST['text']))) : '';
+    if ($text === '') wp_send_json_error(['message' => __('Enter a title first.', 'multi-post-adder')]);
+
+    $source = apply_filters('mpa_translate_source_lang', 'fa');
+    $target = apply_filters('mpa_translate_target_lang', 'en');
+
+    $cache_key = 'mpa_tr_' . md5($source . '|' . $target . '|' . $text);
+    $cached = get_transient($cache_key);
+    if ($cached !== false) wp_send_json_success(['text' => $cached]);
+
+    $url = 'https://translate.googleapis.com/translate_a/single?' . http_build_query([
+        'client' => 'gtx',
+        'sl' => $source,
+        'tl' => $target,
+        'dt' => 't',
+        'q' => $text,
+    ]);
+    $response = wp_remote_get($url, ['timeout' => 15]);
+
+    if (is_wp_error($response)) wp_send_json_error(['message' => $response->get_error_message()]);
+    if (wp_remote_retrieve_response_code($response) !== 200) {
+        /* translators: %d: HTTP status code */
+        wp_send_json_error(['message' => sprintf(__('Google Translate returned HTTP %d.', 'multi-post-adder'), wp_remote_retrieve_response_code($response))]);
+    }
+
+    $data = json_decode(wp_remote_retrieve_body($response), true);
+    $translated = '';
+    if (is_array($data) && !empty($data[0]) && is_array($data[0])) {
+        foreach ($data[0] as $segment) {
+            if (isset($segment[0]) && is_string($segment[0])) $translated .= $segment[0];
+        }
+    }
+    $translated = trim($translated);
+    if ($translated === '') wp_send_json_error(['message' => __('Translation failed.', 'multi-post-adder')]);
+
+    set_transient($cache_key, $translated, DAY_IN_SECONDS);
+    wp_send_json_success(['text' => $translated]);
+});
+
+// Remember the Automation box (on/off + download pattern) per user.
+add_action('wp_ajax_mpa_save_automation', function () {
+    check_ajax_referer('mpa_automation', 'nonce');
+    if (!current_user_can('edit_posts')) wp_send_json_error(null, 403);
+
+    update_user_meta(get_current_user_id(), 'mpa_automation', [
+        'enabled' => !empty($_POST['enabled']) && $_POST['enabled'] !== 'false',
+        'download_pattern' => isset($_POST['download_pattern']) ? sanitize_text_field(wp_unslash($_POST['download_pattern'])) : '',
+    ]);
+    wp_send_json_success();
 });
 
 function mpa_get_presets() {
@@ -185,6 +270,70 @@ function mpa_settings_page() {
     <?php
 }
 
+/**
+ * Multi-select category picker: a dropdown with a checkbox beside each
+ * category (children indented under parents) and the selection shown as chips.
+ */
+function mpa_category_picker() {
+    $categories = get_categories([
+        'hide_empty' => false,
+        'orderby' => 'name',
+        'order' => 'ASC',
+    ]);
+
+    $children = [];
+    foreach ($categories as $category) {
+        $children[(int) $category->parent][] = $category;
+    }
+    ?>
+    <div class="mpa-cat-select" id="mpa-cat-select">
+        <div class="mpa-cat-control" role="button" tabindex="0" aria-haspopup="listbox" aria-expanded="false" aria-labelledby="mpa-cat-label">
+            <span class="mpa-cat-chips" data-empty="<?php esc_attr_e('Select categories', 'multi-post-adder'); ?>"></span>
+            <span class="mpa-cat-arrow" aria-hidden="true"></span>
+        </div>
+        <div class="mpa-cat-panel" hidden>
+            <input type="search" class="mpa-cat-search" placeholder="<?php esc_attr_e('Search categories…', 'multi-post-adder'); ?>" aria-label="<?php esc_attr_e('Search categories', 'multi-post-adder'); ?>">
+            <?php if (empty($categories)) : ?>
+                <p class="mpa-cat-empty"><?php _e('No categories found.', 'multi-post-adder'); ?></p>
+            <?php else : ?>
+                <ul class="mpa-cat-list" role="listbox" aria-multiselectable="true">
+                    <?php mpa_category_picker_items($children, 0, []); ?>
+                </ul>
+                <p class="mpa-cat-no-match" hidden><?php _e('No matching categories.', 'multi-post-adder'); ?></p>
+            <?php endif; ?>
+            <div class="mpa-cat-footer">
+                <span class="mpa-cat-count"></span>
+                <button type="button" class="button-link mpa-cat-clear"><?php _e('Clear', 'multi-post-adder'); ?></button>
+            </div>
+        </div>
+    </div>
+    <?php
+}
+
+function mpa_category_picker_items($children, $parent_id, $ancestors) {
+    if (empty($children[$parent_id])) return;
+
+    foreach ($children[$parent_id] as $category) {
+        $id = (int) $category->term_id;
+        $path = array_merge($ancestors, [$id]);
+        ?>
+        <li class="mpa-cat-item" data-id="<?php echo esc_attr($id); ?>">
+            <label class="mpa-cat-option">
+                <input type="checkbox" name="mpa-category[]" value="<?php echo esc_attr($id); ?>"
+                       data-name="<?php echo esc_attr($category->name); ?>"
+                       data-path="<?php echo esc_attr(implode(',', $path)); ?>">
+                <span class="mpa-cat-name"><?php echo esc_html($category->name); ?></span>
+            </label>
+            <?php if (!empty($children[$id])) : ?>
+                <ul class="mpa-cat-children">
+                    <?php mpa_category_picker_items($children, $id, $path); ?>
+                </ul>
+            <?php endif; ?>
+        </li>
+        <?php
+    }
+}
+
 function mpa_updates_tab() {
     $settings = MPA_GitHub_Updater::get_settings();
     $plugin   = get_file_data(__FILE__, ['Version' => 'Version']);
@@ -280,6 +429,7 @@ function mpa_updates_tab() {
 
 function mpa_admin_page() {
     $presets = mpa_get_presets();
+    $automation = mpa_get_automation_settings();
     ?>
     <div class="wrap">
         <h1><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
@@ -293,19 +443,10 @@ function mpa_admin_page() {
                         <input type="number" id="mpa-count" min="1" value="1">
                     </label>
 
-                    <label>
-                        <span><?php _e('Category:', 'multi-post-adder'); ?></span>
-                <?php
-                wp_dropdown_categories([
-                    'name' => 'mpa-category',
-                    'hierarchical' => true,           // ✅ Enables hierarchy
-                    'hide_empty' => false,
-                    'orderby' => 'name',
-                    'show_option_none' => __('Select a category', 'multi-post-adder'),
-                    'depth' => 0,                      // ✅ Show all levels
-                ]);
-                ?>
-                    </label>
+                    <div class="mpa-field mpa-cat-field">
+                        <span id="mpa-cat-label"><?php _e('Categories:', 'multi-post-adder'); ?></span>
+                        <?php mpa_category_picker(); ?>
+                    </div>
 
                     <label>
                         <span><?php _e('Hashtags (comma-separated):', 'multi-post-adder'); ?></span>
@@ -327,6 +468,47 @@ function mpa_admin_page() {
                     <h3><?php _e('Global Custom Fields', 'multi-post-adder'); ?></h3>
                     <button type="button" class="button mpa-add-global-meta"><?php _e('Add Global Custom Field', 'multi-post-adder'); ?></button>
                     <div class="mpa-custom-fields" id="mpa-global-meta"></div>
+                </div>
+            </section>
+
+            <section class="mpa-automation<?php echo $automation['enabled'] ? ' is-active' : ''; ?>" id="mpa-automation">
+                <h2 class="mpa-automation-header">
+                    <label>
+                        <input type="checkbox" id="mpa-automation-enabled" <?php checked($automation['enabled']); ?>>
+                        <?php _e('Automation', 'multi-post-adder'); ?>
+                    </label>
+                </h2>
+
+                <div class="mpa-automation-body"<?php echo $automation['enabled'] ? '' : ' hidden'; ?>>
+                    <p class="description"><?php _e('Put these placeholders in the post content (or in a preset), then use the buttons on each post to fill them in. Clicking a button again updates the value it inserted before.', 'multi-post-adder'); ?></p>
+
+                    <table class="mpa-placeholder-table">
+                        <tr>
+                            <td><code>{translated_title}</code></td>
+                            <td><?php _e('English translation of the post title (Google Translate). Button: Translate title', 'multi-post-adder'); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>{download_link}</code></td>
+                            <td><?php _e('The download link pattern below, filled in for each post. Button: Download link', 'multi-post-adder'); ?></td>
+                        </tr>
+                        <tr>
+                            <td><code>{file_name}</code></td>
+                            <td><?php _e('File name of the post’s featured image, without extension. Button: File name', 'multi-post-adder'); ?></td>
+                        </tr>
+                    </table>
+
+                    <div class="mpa-automation-field">
+                        <label for="mpa-download-pattern"><?php _e('Download link pattern', 'multi-post-adder'); ?></label>
+                        <div class="mpa-pattern-row">
+                            <input type="text" id="mpa-download-pattern" class="code" value="<?php echo esc_attr($automation['download_pattern']); ?>" placeholder="https://dl.example.com/files/{file_name}.zip" dir="ltr">
+                            <button type="button" class="button mpa-insert-token" data-token="{file_name}"><?php _e('Insert', 'multi-post-adder'); ?> <code>{file_name}</code></button>
+                        </div>
+                        <p class="description"><?php _e('Place {file_name} where each post’s image file name should go.', 'multi-post-adder'); ?></p>
+                    </div>
+
+                    <div class="mpa-automation-actions">
+                        <button type="button" class="button button-secondary mpa-run-all-posts"><?php _e('Run all automations on every post', 'multi-post-adder'); ?></button>
+                    </div>
                 </div>
             </section>
 
@@ -427,7 +609,9 @@ add_action('admin_init', function () {
 add_action('admin_init', function () {
     if (!isset($_POST['mpa-posts'])) return;
 
-    $category_id = intval($_POST['mpa-category']);
+    $category_ids = isset($_POST['mpa-category']) ? array_filter(array_map('intval', (array) $_POST['mpa-category']), function ($id) {
+        return $id > 0;
+    }) : [];
     $hashtags = sanitize_text_field($_POST['mpa-hashtags']);
     $global_meta_data = !empty($_POST['mpa-global-meta']) ? $_POST['mpa-global-meta'] : [];
     $posts_data = $_POST['mpa-posts'];
@@ -442,7 +626,7 @@ add_action('admin_init', function () {
             'post_title' => $title,
             'post_content' => $content,
             'post_status' => $status,
-            'post_category' => [$category_id],
+            'post_category' => array_values($category_ids),
         ]);
         if ($post_id && $image_id) set_post_thumbnail($post_id, $image_id);
 

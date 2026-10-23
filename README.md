@@ -13,13 +13,14 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 - Add multiple WordPress posts from a single admin page
 - Choose the number of posts dynamically
 - Add a title and rich text content for each post
-- Select a WordPress category
+- Select one or more categories from a searchable checkbox dropdown (shown as `Parent › Child`)
 - Add comma-separated hashtags/tags
 - Upload or select a featured image for each post
 - Add custom fields / post metadata
 - Publish posts immediately or save them as drafts
 - Basic admin styling for a cleaner editing workflow
 - Translation-ready plugin structure
+- Automation box: fill placeholders in each post with one click (title translation, download link, image file name)
 - One-click updates from GitHub right inside the WordPress dashboard
 
 ## Technologies Used
@@ -43,10 +44,26 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 
 1. Open **Posts → Add Multiple Posts** in the WordPress dashboard.
 2. Enter the number of posts you want to create.
-3. Select a category.
+3. Select one or more categories.
 4. Add optional hashtags/tags.
 5. Fill in each post title, content, featured image, and custom fields.
 6. Click **Publish Posts** to publish them immediately, or **Save as Draft** to save them for later editing.
+
+## Automation
+
+Tick **Automation** on the Add Multiple Posts page to show the Automation box and a row of buttons on every post. Put these placeholders in the post content (or in a content preset), then click the buttons to fill them in:
+
+| Placeholder | Button | Replaced with |
+| --- | --- | --- |
+| `{translated_title}` | Translate title | The post title translated from Persian to English (Google Translate) |
+| `{download_link}` | Download link | The **Download link pattern** from the Automation box, with `{file_name}` filled in for that post |
+| `{file_name}` | File name | The featured image's file name, without extension |
+
+Each post's buttons work independently. **Run all** runs all three on one post, and **Run all automations on every post** does it for every post. Clicking a button again updates the value it inserted before, e.g. after changing the featured image. The Automation on/off state and the download link pattern are remembered per user.
+
+Example pattern: `https://dl.example.com/files/{file_name}.zip`
+
+Developers can change the translation languages with the `mpa_translate_source_lang` and `mpa_translate_target_lang` filters.
 
 ## Updates from GitHub
 
