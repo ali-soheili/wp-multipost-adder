@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.8
+ * Version: 1.9
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -87,6 +87,16 @@ add_action('admin_enqueue_scripts', function ($hook) {
         'remove' => __('Remove', 'multi-post-adder'),
         'noPlaceholders' => __('No placeholders found in this post.', 'multi-post-adder'),
         'copied' => __('Copied!', 'multi-post-adder'),
+        'publishPosts' => __('Publish Posts', 'multi-post-adder'),
+        'schedulePosts' => __('Schedule Posts', 'multi-post-adder'),
+        /* translators: %d: post number */
+        'postN' => __('Post %d', 'multi-post-adder'),
+        'chooseFuture' => __('Choose a date and time in the future.', 'multi-post-adder'),
+        'chooseDate' => __('Choose a date and time for scheduling.', 'multi-post-adder'),
+        /* translators: %s: date and time */
+        'allAt' => __('All posts will be published on %s.', 'multi-post-adder'),
+        /* translators: 1: first date and time, 2: last date and time */
+        'oneByOne' => __('From %1$s to %2$s.', 'multi-post-adder'),
     ]);
     wp_localize_script('mpa-script', 'mpa_automation', [
         'ajaxUrl' => admin_url('admin-ajax.php'),
@@ -195,6 +205,69 @@ add_action('wp_ajax_mpa_save_automation', function () {
     ]);
     wp_send_json_success();
 });
+
+/* -------------------------------------------------------------------------
+ * Scheduling
+ * ---------------------------------------------------------------------- */
+
+function mpa_schedule_intervals() {
+    return [
+        15   => __('15 minutes', 'multi-post-adder'),
+        30   => __('30 minutes', 'multi-post-adder'),
+        60   => __('1 hour', 'multi-post-adder'),
+        120  => __('2 hours', 'multi-post-adder'),
+        180  => __('3 hours', 'multi-post-adder'),
+        360  => __('6 hours', 'multi-post-adder'),
+        720  => __('12 hours', 'multi-post-adder'),
+        1440 => __('24 hours', 'multi-post-adder'),
+    ];
+}
+
+function mpa_get_schedule_settings() {
+    $saved = get_user_meta(get_current_user_id(), 'mpa_schedule', true);
+    $settings = wp_parse_args(is_array($saved) ? $saved : [], [
+        'enabled' => false,
+        'mode' => 'all',
+        'interval' => 60,
+    ]);
+    if (!array_key_exists((int) $settings['interval'], mpa_schedule_intervals())) $settings['interval'] = 60;
+    return $settings;
+}
+
+// Remember the Scheduling box (on/off, mode, interval) per user. The date itself is not remembered.
+add_action('wp_ajax_mpa_save_schedule', function () {
+    check_ajax_referer('mpa_automation', 'nonce');
+    if (!current_user_can('edit_posts')) wp_send_json_error(null, 403);
+
+    $interval = isset($_POST['interval']) ? (int) $_POST['interval'] : 60;
+    update_user_meta(get_current_user_id(), 'mpa_schedule', [
+        'enabled' => !empty($_POST['enabled']) && $_POST['enabled'] !== 'false',
+        'mode' => (isset($_POST['mode']) && $_POST['mode'] === 'interval') ? 'interval' : 'all',
+        'interval' => array_key_exists($interval, mpa_schedule_intervals()) ? $interval : 60,
+    ]);
+    wp_send_json_success();
+});
+
+/**
+ * Publish times for $count posts, as DateTimeImmutable in the site timezone,
+ * or null when scheduling is off or the input is invalid.
+ */
+function mpa_schedule_times($schedule, $count) {
+    if (empty($schedule['enabled']) || empty($schedule['start'])) return null;
+
+    $tz = wp_timezone();
+    $start = DateTimeImmutable::createFromFormat('Y-m-d\TH:i', sanitize_text_field(wp_unslash($schedule['start'])), $tz);
+    if (!$start) return null;
+
+    $interval = (isset($schedule['mode']) && $schedule['mode'] === 'interval') ? (int) ($schedule['interval'] ?? 0) : 0;
+    if ($interval && !array_key_exists($interval, mpa_schedule_intervals())) $interval = 60;
+
+    $times = [];
+    for ($i = 0; $i < $count; $i++) {
+        $times[] = $start->modify('+' . ($i * $interval) . ' minutes');
+    }
+    return $times;
+}
 
 function mpa_get_presets() {
     $presets = get_option('mpa_content_presets', []);
@@ -562,9 +635,74 @@ function mpa_admin_page() {
             </section>
 
             <div id="mpa-posts-container"></div>
-            <br>
-            <button type="submit" name="mpa-submit" class="button button-primary"><?php _e('Publish Posts', 'multi-post-adder'); ?></button>
+
+            <?php
+            $schedule = mpa_get_schedule_settings();
+            $now = current_datetime();
+            $default_start = $now->setTime((int) $now->format('H'), 0)->modify('+1 hour');
+            ?>
+            <section class="mpa-automation mpa-scheduling<?php echo $schedule['enabled'] ? ' is-active' : ''; ?>" id="mpa-scheduling">
+                <label class="mpa-automation-header" for="mpa-schedule-enabled">
+                    <span class="mpa-automation-icon dashicons dashicons-clock" aria-hidden="true"></span>
+                    <span class="mpa-automation-titles">
+                        <span class="mpa-automation-title"><?php _e('Scheduling', 'multi-post-adder'); ?></span>
+                        <span class="mpa-automation-subtitle"><?php _e('Publish the posts later instead of right away', 'multi-post-adder'); ?></span>
+                    </span>
+                    <input type="checkbox" class="mpa-switch" id="mpa-schedule-enabled" name="mpa-schedule[enabled]" value="1" <?php checked($schedule['enabled']); ?>>
+                </label>
+
+                <div class="mpa-automation-body mpa-schedule-body"<?php echo $schedule['enabled'] ? '' : ' hidden'; ?>>
+                    <div class="mpa-schedule-fields">
+                        <div class="mpa-schedule-field">
+                            <span class="mpa-automation-heading"><?php _e('Mode', 'multi-post-adder'); ?></span>
+                            <div class="mpa-segmented" role="radiogroup">
+                                <label>
+                                    <input type="radio" name="mpa-schedule[mode]" value="all" <?php checked($schedule['mode'], 'all'); ?>>
+                                    <span><span class="dashicons dashicons-images-alt2" aria-hidden="true"></span><?php _e('All at once', 'multi-post-adder'); ?></span>
+                                </label>
+                                <label>
+                                    <input type="radio" name="mpa-schedule[mode]" value="interval" <?php checked($schedule['mode'], 'interval'); ?>>
+                                    <span><span class="dashicons dashicons-backup" aria-hidden="true"></span><?php _e('One by one', 'multi-post-adder'); ?></span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="mpa-schedule-field">
+                            <label class="mpa-automation-heading" for="mpa-schedule-start">
+                                <span class="mpa-when-all"><?php _e('Publish at', 'multi-post-adder'); ?></span>
+                                <span class="mpa-when-interval"><?php _e('First post at', 'multi-post-adder'); ?></span>
+                            </label>
+                            <input type="datetime-local" id="mpa-schedule-start" name="mpa-schedule[start]"
+                                   value="<?php echo esc_attr($default_start->format('Y-m-d\TH:i')); ?>"
+                                   data-now="<?php echo esc_attr($now->format('Y-m-d\TH:i')); ?>">
+                        </div>
+
+                        <div class="mpa-schedule-field mpa-when-interval">
+                            <label class="mpa-automation-heading" for="mpa-schedule-interval"><?php _e('Then one post every', 'multi-post-adder'); ?></label>
+                            <select id="mpa-schedule-interval" name="mpa-schedule[interval]">
+                                <?php foreach (mpa_schedule_intervals() as $minutes => $label) : ?>
+                                    <option value="<?php echo esc_attr($minutes); ?>" <?php selected((int) $schedule['interval'], $minutes); ?>><?php echo esc_html($label); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="mpa-schedule-summary">
+                        <p class="mpa-schedule-preview" aria-live="polite"></p>
+                        <p class="mpa-automation-hint">
+                            <?php
+                            /* translators: %s: timezone name, e.g. Europe/Amsterdam */
+                            printf(esc_html__('Times are in the site timezone (%s). Save as Draft ignores scheduling.', 'multi-post-adder'), esc_html(wp_timezone_string()));
+                            ?>
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <div class="mpa-submit-row">
+            <button type="submit" name="mpa-submit" id="mpa-submit" class="button button-primary"><?php echo $schedule['enabled'] ? esc_html__('Schedule Posts', 'multi-post-adder') : esc_html__('Publish Posts', 'multi-post-adder'); ?></button>
             <button type="submit" name="mpa-submit-draft" class="button"><?php _e('Save as Draft', 'multi-post-adder'); ?></button>
+            </div>
         </form>
     </div>
     <?php
@@ -666,17 +804,38 @@ add_action('admin_init', function () {
     $posts_data = $_POST['mpa-posts'];
     $status = isset($_POST['mpa-submit']) ? 'publish' : 'draft';
 
+    // Scheduling applies to publishing only; drafts are saved as usual.
+    $schedule_times = ($status === 'publish' && !empty($_POST['mpa-schedule']) && is_array($_POST['mpa-schedule']))
+        ? mpa_schedule_times($_POST['mpa-schedule'], count($posts_data))
+        : null;
+    $now_ts = time();
+    $post_number = 0;
+
     foreach ($posts_data as $post_data) {
         $title = sanitize_text_field($post_data['title']);
         $content = wp_kses_post($post_data['content']);
         $image_id = intval($post_data['image']);
 
-        $post_id = wp_insert_post([
+        $postarr = [
             'post_title' => $title,
             'post_content' => $content,
             'post_status' => $status,
             'post_category' => array_values($category_ids),
-        ]);
+        ];
+
+        if ($schedule_times && isset($schedule_times[$post_number])) {
+            $when = $schedule_times[$post_number];
+            // A time that has already passed is published right away (no backdating).
+            if ($when->getTimestamp() > $now_ts) {
+                $postarr['post_status'] = 'future';
+                $postarr['post_date'] = $when->format('Y-m-d H:i:s');
+                $postarr['post_date_gmt'] = $when->setTimezone(new DateTimeZone('UTC'))->format('Y-m-d H:i:s');
+                $postarr['edit_date'] = true;
+            }
+        }
+        $post_number++;
+
+        $post_id = wp_insert_post($postarr);
         if ($post_id && $image_id) set_post_thumbnail($post_id, $image_id);
 
         if (!empty($global_meta_data)) {

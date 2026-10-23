@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.8\n"
+"Project-Id-Version: Multi Post Adder 1.9\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -372,4 +372,77 @@ msgstr "اجرا روی همه نوشته‌ها"
 
 msgid "Copied!"
 msgstr "کپی شد!"
+
+msgid "15 minutes"
+msgstr "۱۵ دقیقه"
+
+msgid "30 minutes"
+msgstr "۳۰ دقیقه"
+
+msgid "1 hour"
+msgstr "۱ ساعت"
+
+msgid "2 hours"
+msgstr "۲ ساعت"
+
+msgid "3 hours"
+msgstr "۳ ساعت"
+
+msgid "6 hours"
+msgstr "۶ ساعت"
+
+msgid "12 hours"
+msgstr "۱۲ ساعت"
+
+msgid "24 hours"
+msgstr "۲۴ ساعت"
+
+msgid "Schedule Posts"
+msgstr "زمان‌بندی نوشته‌ها"
+
+#, php-format, python-format
+msgid "Post %d"
+msgstr "نوشته %d"
+
+msgid "Choose a date and time in the future."
+msgstr "تاریخ و زمانی در آینده انتخاب کنید."
+
+msgid "Choose a date and time for scheduling."
+msgstr "تاریخ و زمان زمان‌بندی را انتخاب کنید."
+
+#, php-format, python-format
+msgid "All posts will be published on %s."
+msgstr "همه نوشته‌ها در %s منتشر می‌شوند."
+
+#, php-format
+msgid "From %1$s to %2$s."
+msgstr "از %1$s تا %2$s."
+
+msgid "Scheduling"
+msgstr "زمان‌بندی"
+
+msgid "Publish the posts later instead of right away"
+msgstr "انتشار نوشته‌ها در زمانی دیگر به‌جای همین حالا"
+
+msgid "Mode"
+msgstr "حالت"
+
+msgid "All at once"
+msgstr "همه با هم"
+
+msgid "One by one"
+msgstr "یکی‌یکی"
+
+msgid "Publish at"
+msgstr "زمان انتشار"
+
+msgid "First post at"
+msgstr "زمان اولین نوشته"
+
+msgid "Then one post every"
+msgstr "سپس یک نوشته هر"
+
+#, php-format, python-format
+msgid "Times are in the site timezone (%s). Save as Draft ignores scheduling."
+msgstr "زمان‌ها بر اساس منطقه زمانی سایت (%s) هستند. «ذخیره به‌عنوان پیش‌نویس» زمان‌بندی را نادیده می‌گیرد."
 

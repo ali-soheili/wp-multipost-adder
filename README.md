@@ -17,7 +17,7 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 - Add comma-separated hashtags/tags
 - Upload or select a featured image for each post
 - Add custom fields / post metadata
-- Publish posts immediately or save them as drafts
+- Publish posts immediately, schedule them, or save them as drafts
 - Basic admin styling for a cleaner editing workflow
 - Translation-ready plugin structure
 - Automation box: fill placeholders in each post with one click (title translation, download link, image file name)
@@ -64,6 +64,15 @@ Each post's buttons work independently. **Run all** runs all three on one post, 
 Example pattern: `https://dl.example.com/files/{file_name}.zip`
 
 Developers can change the translation languages with the `mpa_translate_source_lang` and `mpa_translate_target_lang` filters.
+
+## Scheduling
+
+Turn on **Scheduling** (above the Publish button) to publish the posts later:
+
+- **All at once** – every post is published at the chosen date and time.
+- **One by one** – the first post at the chosen time, then one post every 15 min, 30 min, 1 h, 2 h, 3 h, 6 h, 12 h or 24 h.
+
+Each post shows its publish time while scheduling is on, and the Publish button becomes **Schedule Posts**. Times use the site timezone (Settings → General). Save as Draft ignores scheduling. The on/off state, mode and interval are remembered per user.
 
 ## Updates from GitHub
 

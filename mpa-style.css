@@ -870,6 +870,167 @@
 }
 
 /* ==========================================================================
+   Scheduling box (reuses the Automation box look)
+   ========================================================================== */
+.mpa-scheduling .mpa-schedule-body {
+    display: block;
+}
+
+.mpa-scheduling .mpa-schedule-body[hidden] {
+    display: none;
+}
+
+.mpa-schedule-fields {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: 16px 24px;
+}
+
+.mpa-schedule-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.mpa-schedule-field .mpa-automation-heading {
+    margin: 0;
+}
+
+.mpa-schedule-field input[type="datetime-local"],
+.mpa-schedule-field select {
+    min-width: 210px;
+    margin: 0;
+}
+
+.mpa-scheduling.mode-all .mpa-when-interval,
+.mpa-scheduling.mode-interval .mpa-when-all {
+    display: none;
+}
+
+/* Segmented mode switch */
+.mpa-segmented {
+    display: inline-flex;
+    padding: 3px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #f6f7f7;
+}
+
+.mpa-segmented label {
+    position: relative;
+    margin: 0;
+}
+
+.mpa-segmented input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    pointer-events: none;
+}
+
+.mpa-segmented label > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 12px;
+    border-radius: 4px;
+    color: #50575e;
+    font-size: 13px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, box-shadow .15s ease;
+}
+
+.mpa-segmented .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.mpa-segmented label > span:hover {
+    color: #1d2327;
+}
+
+.mpa-segmented input:checked + span {
+    background: #fff;
+    color: #2271b1;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, .08), 0 0 0 1px #dcdcde;
+}
+
+.mpa-segmented input:focus-visible + span {
+    outline: 2px solid #2271b1;
+    outline-offset: 1px;
+}
+
+.mpa-schedule-summary {
+    margin-top: 14px;
+    padding-top: 12px;
+    border-top: 1px solid #f0f0f1;
+}
+
+.mpa-schedule-preview {
+    margin: 0 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.mpa-schedule-preview.is-error {
+    color: #b32d2e;
+}
+
+.mpa-schedule-summary .mpa-automation-hint {
+    margin: 0;
+}
+
+/* Publish time badge on each post */
+.mpa-post-head .mpa-post-number {
+    flex: none;
+}
+
+.mpa-post-when {
+    display: none;
+    margin-right: auto;
+    padding: 2px 8px;
+    border-radius: 10px;
+    background: #f0f6fc;
+    color: #2271b1;
+    font-size: 12px;
+    line-height: 18px;
+    white-space: nowrap;
+}
+
+.mpa-post-when::before {
+    content: "\f469";
+    font-family: dashicons;
+    margin-right: 4px;
+    vertical-align: -2px;
+}
+
+#mpa-form.mpa-scheduling-on .mpa-post-when:not(:empty) {
+    display: inline-block;
+}
+
+.mpa-post-head {
+    justify-content: flex-start;
+}
+
+.mpa-post-head .mpa-post-automation {
+    margin-left: auto;
+}
+
+.mpa-submit-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin: 4px 0 20px;
+}
+
+/* ==========================================================================
    Right-to-left admin (e.g. Persian)
    ========================================================================== */
 .rtl .mpa-cat-control { padding: 0 5px 0 30px; }
@@ -883,6 +1044,9 @@
 .rtl .mpa-input-group input[type="text"] { border-radius: 0 4px 4px 0; }
 .rtl .mpa-insert-token { margin: 0 -1px 0 0; border-radius: 4px 0 0 4px; }
 .rtl .mpa-auto-status { text-align: left; }
+.rtl .mpa-post-when { margin-right: 0; margin-left: auto; }
+.rtl .mpa-post-when::before { margin-right: 0; margin-left: 4px; }
+.rtl .mpa-post-head .mpa-post-automation { margin-left: 0; margin-right: auto; }
 
 @media (max-width: 782px) {
     .mpa-post-head {

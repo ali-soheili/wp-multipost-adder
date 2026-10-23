@@ -27,7 +27,14 @@ jQuery(document).ready(function ($) {
         selectedCount: '%d selected',
         remove: 'Remove',
         noPlaceholders: 'No placeholders found in this post.',
-        copied: 'Copied!'
+        copied: 'Copied!',
+        publishPosts: 'Publish Posts',
+        schedulePosts: 'Schedule Posts',
+        postN: 'Post %d',
+        chooseFuture: 'Choose a date and time in the future.',
+        chooseDate: 'Choose a date and time for scheduling.',
+        allAt: 'All posts will be published on %s.',
+        oneByOne: 'From %1$s to %2$s.'
     }, window.mpa_i18n || {});
     const automation = window.mpa_automation || {};
 
@@ -55,6 +62,7 @@ jQuery(document).ready(function ($) {
         <div class="mpa-post-block">
             <div class="mpa-post-head">
                 <h3 class="mpa-post-number">${i + 1}</h3>
+                <span class="mpa-post-when" id="mpa-post-when-${i}"></span>
                 <div class="mpa-post-automation" data-index="${i}">
                     <span class="mpa-auto-status" id="mpa-auto-status-${i}" aria-live="polite"></span>
                     <div class="mpa-tools" role="group" aria-label="${labels.automation}">
@@ -653,5 +661,120 @@ jQuery(document).ready(function ($) {
         });
 
         renderChips();
+    }
+    /* ------------------------------------------------------------------
+     * Scheduling
+     * ---------------------------------------------------------------- */
+
+    const $schedule = $('#mpa-scheduling');
+    if ($schedule.length) {
+        const $toggle = $('#mpa-schedule-enabled');
+        const $start = $('#mpa-schedule-start');
+        const $interval = $('#mpa-schedule-interval');
+        const $preview = $schedule.find('.mpa-schedule-preview');
+        const $submit = $('#mpa-submit');
+        const pageLoadedAt = Date.now();
+        const lang = (document.documentElement.lang || 'en').replace('_', '-');
+
+        // Dates are handled as "site-local wall time" stored in UTC milliseconds,
+        // so the browser's own timezone never shifts them.
+        function parseLocal(value) {
+            const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/.exec(value || '');
+            return m ? Date.UTC(+m[1], m[2] - 1, +m[3], +m[4], +m[5]) : null;
+        }
+
+        let formatter;
+        try {
+            formatter = new Intl.DateTimeFormat(lang, { timeZone: 'UTC', calendar: 'gregory', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
+        } catch (e) {
+            formatter = new Intl.DateTimeFormat('en-GB', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+        }
+        const format = ms => formatter.format(new Date(ms));
+
+        function siteNow() {
+            const base = parseLocal($start.data('now'));
+            return base === null ? null : base + (Date.now() - pageLoadedAt);
+        }
+
+        function mode() {
+            return $schedule.find('input[name="mpa-schedule[mode]"]:checked').val() || 'all';
+        }
+
+        function postCount() {
+            return $('#mpa-posts-container .mpa-post-block').length;
+        }
+
+        function times() {
+            const start = parseLocal($start.val());
+            if (start === null) return null;
+            const step = mode() === 'interval' ? parseInt($interval.val(), 10) * 60000 : 0;
+            return Array.from({ length: postCount() }, (_, i) => start + i * step);
+        }
+
+        function updateSchedule() {
+            const active = $toggle.is(':checked');
+            $schedule.toggleClass('is-active', active)
+                .toggleClass('mode-interval', mode() === 'interval')
+                .toggleClass('mode-all', mode() !== 'interval');
+            $schedule.find('.mpa-schedule-body').prop('hidden', !active);
+            $form.toggleClass('mpa-scheduling-on', active);
+            $submit.text(active ? labels.schedulePosts : labels.publishPosts);
+            $preview.removeClass('is-error');
+
+            const list = active ? times() : null;
+            $('.mpa-post-when').each(function (i) {
+                $(this).text(list && list[i] !== undefined ? format(list[i]) : '');
+            });
+
+            if (!active) return;
+            if (!list) {
+                $preview.text(labels.chooseDate);
+                return;
+            }
+            if (!list.length) {
+                $preview.text('');
+            } else if (mode() !== 'interval' || list.length === 1) {
+                $preview.text(labels.allAt.replace('%s', format(list[0])));
+            } else {
+                $preview.text(labels.oneByOne.replace('%1$s', format(list[0])).replace('%2$s', format(list[list.length - 1])));
+            }
+        }
+
+        let scheduleSaveTimer = null;
+        function saveSchedule() {
+            if (!automation.ajaxUrl) return;
+            clearTimeout(scheduleSaveTimer);
+            scheduleSaveTimer = setTimeout(() => {
+                $.post(automation.ajaxUrl, {
+                    action: 'mpa_save_schedule',
+                    nonce: automation.nonce,
+                    enabled: $toggle.is(':checked') ? 1 : 0,
+                    mode: mode(),
+                    interval: $interval.val()
+                });
+            }, 400);
+        }
+
+        $toggle.on('change', () => { updateSchedule(); saveSchedule(); });
+        $schedule.on('change', 'input[name="mpa-schedule[mode]"], #mpa-schedule-interval', () => { updateSchedule(); saveSchedule(); });
+        $start.on('change input', updateSchedule);
+        $('#mpa-count').on('change', () => setTimeout(updateSchedule, 0));
+
+        // Don't schedule into the past.
+        $submit.on('click', function (e) {
+            if (!$toggle.is(':checked')) return;
+            const start = parseLocal($start.val());
+            const now = siteNow();
+            let message = '';
+            if (start === null) message = labels.chooseDate;
+            else if (now !== null && start <= now) message = labels.chooseFuture;
+            if (message) {
+                e.preventDefault();
+                $preview.text(message).addClass('is-error');
+                $start.trigger('focus');
+            }
+        });
+
+        updateSchedule();
     }
 });
