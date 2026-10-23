@@ -189,11 +189,51 @@ jQuery(document).ready(function ($) {
         container.append(createCustomFieldHTML(`mpa-posts[${index}][meta][${metaIndex}]`));
     });
 
-    $(document).on('click', '.mpa-add-global-meta', function () {
-        const container = $('#mpa-global-meta');
-        const metaIndex = container.children().length;
-        container.append(createCustomFieldHTML(`mpa-global-meta[${metaIndex}]`));
+    /* ------------------------------------------------------------------
+     * Global Custom Fields box
+     * ---------------------------------------------------------------- */
+
+    const $globalMetaBox = $('#mpa-global-meta-box');
+    const $globalMetaToggle = $('#mpa-global-meta-enabled');
+    const $globalMeta = $('#mpa-global-meta');
+    let globalMetaIndex = 0; // Never reused, so removed rows don't clash.
+
+    function addGlobalMetaRow() {
+        const $row = $(createCustomFieldHTML(`mpa-global-meta[${globalMetaIndex++}]`));
+        $row.append(`<button type="button" class="mpa-meta-remove" aria-label="${labels.remove}" title="${labels.remove}"><span class="dashicons dashicons-no-alt" aria-hidden="true"></span></button>`);
+        $globalMeta.append($row);
+        updateGlobalMeta();
+        return $row;
+    }
+
+    function updateGlobalMeta() {
+        const active = $globalMetaToggle.is(':checked');
+        $globalMetaBox.toggleClass('is-active', active);
+        $globalMetaBox.find('.mpa-global-meta-body').prop('hidden', !active);
+        // Fields in a switched-off box are not sent with the form.
+        $globalMeta.find('select, input').prop('disabled', !active);
+
+        const filled = $globalMeta.find('.mpa-meta-row').filter(function () {
+            return $(this).find('select').val() || $(this).find('input[name$="[custom_key]"]').val();
+        }).length;
+        $globalMetaBox.find('.mpa-box-count').text(filled ? filled : '').toggleClass('has-count', filled > 0);
+    }
+
+    $globalMetaToggle.on('change', function () {
+        if (this.checked && !$globalMeta.children().length) addGlobalMetaRow();
+        updateGlobalMeta();
     });
+
+    $(document).on('click', '.mpa-add-global-meta', function () {
+        addGlobalMetaRow().find('select').trigger('focus');
+    });
+
+    $globalMeta.on('click', '.mpa-meta-remove', function () {
+        $(this).closest('.mpa-meta-row').remove();
+        updateGlobalMeta();
+    });
+
+    $globalMeta.on('change input', 'select, input', updateGlobalMeta);
 
     /* ------------------------------------------------------------------
      * Automation

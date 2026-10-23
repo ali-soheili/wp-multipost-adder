@@ -31,21 +31,6 @@
     font-weight: 400;
 }
 
-.mpa-global-custom-fields {
-    margin-top: 18px;
-    padding-top: 16px;
-    border-top: 1px solid #dcdcde;
-}
-
-.mpa-global-custom-fields h3 {
-    margin: 0 0 10px;
-    font-size: 14px;
-}
-
-.mpa-global-custom-fields .mpa-custom-fields {
-    margin-top: 10px;
-}
-
 .mpa-settings-panel {
     max-width: 980px;
     margin-top: 20px;
@@ -867,6 +852,92 @@
 
 .mpa-cat-select:not(.has-value) .mpa-cat-clear {
     visibility: hidden;
+}
+
+.mpa-global-meta-box .mpa-global-meta-body {
+    display: block;
+}
+
+.mpa-global-meta-box .mpa-global-meta-body[hidden] {
+    display: none;
+}
+
+#mpa-global-meta:empty {
+    display: none;
+}
+
+#mpa-global-meta {
+    margin-bottom: 12px;
+}
+
+#mpa-global-meta .mpa-meta-row:first-child {
+    margin-top: 0;
+}
+
+.mpa-meta-remove {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: #8c8f94;
+    cursor: pointer;
+}
+
+.mpa-meta-remove:hover,
+.mpa-meta-remove:focus-visible {
+    background: #fcf0f1;
+    color: #d63638;
+    outline: none;
+}
+
+.mpa-meta-remove .dashicons {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+
+.mpa-automation .button.mpa-add-global-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.mpa-automation .mpa-add-global-meta .dashicons,
+.mpa-automation .mpa-run-all-posts .dashicons {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    font-size: 16px;
+    line-height: 16px;
+    vertical-align: 0;
+    position: static;
+    top: auto;
+}
+
+/* Number of filled fields, shown in the header */
+.mpa-box-count {
+    display: none;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: #f0f6fc;
+    color: #2271b1;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 20px;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.mpa-box-count.has-count {
+    display: inline-block;
 }
 
 /* ==========================================================================

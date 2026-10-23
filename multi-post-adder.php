@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.9
+ * Version: 1.10
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -575,11 +575,25 @@ function mpa_admin_page() {
                         </select>
                     </label>
                 </div>
+            </section>
 
-                <div class="mpa-global-custom-fields">
-                    <h3><?php _e('Global Custom Fields', 'multi-post-adder'); ?></h3>
-                    <button type="button" class="button mpa-add-global-meta"><?php _e('Add Global Custom Field', 'multi-post-adder'); ?></button>
+            <section class="mpa-automation mpa-global-meta-box" id="mpa-global-meta-box">
+                <label class="mpa-automation-header" for="mpa-global-meta-enabled">
+                    <span class="mpa-automation-icon dashicons dashicons-list-view" aria-hidden="true"></span>
+                    <span class="mpa-automation-titles">
+                        <span class="mpa-automation-title"><?php _e('Global Custom Fields', 'multi-post-adder'); ?></span>
+                        <span class="mpa-automation-subtitle"><?php _e('Custom fields added to every post', 'multi-post-adder'); ?></span>
+                    </span>
+                    <span class="mpa-box-count" aria-hidden="true"></span>
+                    <input type="checkbox" class="mpa-switch" id="mpa-global-meta-enabled">
+                </label>
+
+                <div class="mpa-automation-body mpa-global-meta-body" hidden>
                     <div class="mpa-custom-fields" id="mpa-global-meta"></div>
+                    <button type="button" class="button mpa-add-global-meta">
+                        <span class="dashicons dashicons-plus-alt2" aria-hidden="true"></span>
+                        <?php _e('Add Field', 'multi-post-adder'); ?>
+                    </button>
                 </div>
             </section>
 
