@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.7.1
+ * Version: 1.7.3
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -189,7 +189,8 @@ add_action('wp_ajax_mpa_save_automation', function () {
 
     update_user_meta(get_current_user_id(), 'mpa_automation', [
         'enabled' => !empty($_POST['enabled']) && $_POST['enabled'] !== 'false',
-        'download_pattern' => isset($_POST['download_pattern']) ? sanitize_text_field(wp_unslash($_POST['download_pattern'])) : '',
+        // Free text; HTML allowed in posts is kept.
+        'download_pattern' => isset($_POST['download_pattern']) ? wp_kses_post(wp_unslash($_POST['download_pattern'])) : '',
     ]);
     wp_send_json_success();
 });

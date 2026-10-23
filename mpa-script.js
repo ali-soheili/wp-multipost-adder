@@ -55,17 +55,18 @@ jQuery(document).ready(function ($) {
             <h3 class="mpa-post-number">${i + 1}</h3>
             <div class="mpa-post-automation" data-index="${i}">
                 <span class="mpa-post-automation-label">${labels.automation}</span>
-                <button type="button" class="button mpa-auto-btn" data-action="translate" data-index="${i}">
-                    <span class="dashicons dashicons-translation"></span> ${labels.translateTitle}
+                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="translate" data-index="${i}" title="${labels.translateTitle}" aria-label="${labels.translateTitle}">
+                    <span class="dashicons dashicons-translation" aria-hidden="true"></span>
                 </button>
-                <button type="button" class="button mpa-auto-btn" data-action="download" data-index="${i}">
-                    <span class="dashicons dashicons-download"></span> ${labels.downloadLink}
+                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="download" data-index="${i}" title="${labels.downloadLink}" aria-label="${labels.downloadLink}">
+                    <span class="dashicons dashicons-download" aria-hidden="true"></span>
                 </button>
-                <button type="button" class="button mpa-auto-btn" data-action="filename" data-index="${i}">
-                    <span class="dashicons dashicons-format-image"></span> ${labels.fileName}
+                <button type="button" class="button mpa-auto-btn mpa-icon-btn" data-action="filename" data-index="${i}" title="${labels.fileName}" aria-label="${labels.fileName}">
+                    <span class="dashicons dashicons-media-default" aria-hidden="true"></span>
                 </button>
-                <button type="button" class="button button-primary mpa-auto-btn" data-action="all" data-index="${i}">
-                    <span class="dashicons dashicons-update"></span> ${labels.runAll}
+                <span class="mpa-auto-divider" aria-hidden="true"></span>
+                <button type="button" class="button button-primary mpa-auto-btn mpa-icon-btn" data-action="all" data-index="${i}" title="${labels.runAll}" aria-label="${labels.runAll}">
+                    <span class="dashicons dashicons-update" aria-hidden="true"></span>
                 </button>
                 <span class="mpa-auto-status" id="mpa-auto-status-${i}" aria-live="polite"></span>
             </div>
@@ -254,31 +255,34 @@ jQuery(document).ready(function ($) {
         return $(`#${id}`).val();
     }
 
+    function escapeRegExp(text) {
+        return String(text).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    }
+
+    // {key}, or %7Bkey%7D if the visual editor encoded the braces inside a link.
+    function placeholderRegExp(key) {
+        const k = escapeRegExp(key);
+        return new RegExp(`\\{${k}\\}|%7B${k}%7D`, 'gi');
+    }
+
     /**
      * Replace {key} in the post content with value. If the placeholder is
      * gone because it was filled before, replace the previously inserted value.
+     * With asIs = true the value is inserted exactly as given (may contain HTML).
      */
-    function fillPlaceholder(index, key, rawValue) {
+    function fillPlaceholder(index, key, rawValue, asIs) {
         const editorId = `editor-${index}`;
-        const value = escapeHtml(rawValue);
+        const value = asIs ? String(rawValue) : escapeHtml(rawValue);
         let content = getEditorContent(editorId) || '';
-
-        // Editors may URL-encode braces inside links (href="%7Bdownload_link%7D").
-        const tokens = [`{${key}}`, `%7B${key}%7D`, `%7b${key}%7d`];
         const previous = (lastValues[index] || {})[key];
 
-        let found = false;
-        tokens.forEach(token => {
-            if (content.includes(token)) {
-                content = content.split(token).join(value);
-                found = true;
-            }
-        });
-        if (!found && previous && previous !== value && content.includes(previous)) {
+        let found = placeholderRegExp(key).test(content);
+        if (found) {
+            content = content.replace(placeholderRegExp(key), () => value);
+        } else if (previous && previous !== value && content.includes(previous)) {
             content = content.split(previous).join(value);
             found = true;
-        }
-        if (!found && content.includes(value)) {
+        } else if (content.includes(value)) {
             // Already up to date (e.g. updated together with another value).
             lastValues[index] = Object.assign({}, lastValues[index], { [key]: value });
             return true;
@@ -376,8 +380,8 @@ jQuery(document).ready(function ($) {
     }
 
     function applyDownloadLink(index) {
-        const pattern = ($pattern.val() || '').trim();
-        if (!pattern) return labels.enterPattern;
+        const pattern = $pattern.val() || '';
+        if (!pattern.trim()) return labels.enterPattern;
 
         let link = pattern;
         if (pattern.includes('{file_name}')) {
@@ -385,7 +389,8 @@ jQuery(document).ready(function ($) {
             if (!fileName) return labels.selectImage;
             link = pattern.split('{file_name}').join(fileName);
         }
-        return fillPlaceholder(index, 'download_link', link) ? true : notFound('download_link');
+        // The pattern is free text: inserted exactly as typed, only {file_name} is filled in.
+        return fillPlaceholder(index, 'download_link', link, true) ? true : notFound('download_link');
     }
 
     function applyFileName(index) {
@@ -408,7 +413,7 @@ jQuery(document).ready(function ($) {
     function postUses(index, key) {
         const content = getEditorContent(`editor-${index}`) || '';
         const previous = (lastValues[index] || {})[key];
-        return content.includes(`{${key}}`) || content.toLowerCase().includes(`%7b${key}%7d`) || (previous && content.includes(previous));
+        return placeholderRegExp(key).test(content) || Boolean(previous && content.includes(previous));
     }
 
     function runAllOnPost(index) {
@@ -434,6 +439,7 @@ jQuery(document).ready(function ($) {
         const $buttons = $btn.closest('.mpa-post-automation').find('.mpa-auto-btn');
 
         $buttons.prop('disabled', true);
+        $btn.addClass('is-busy');
         setStatus(index, labels.working, 'working');
 
         const job = action === 'all'
@@ -443,7 +449,10 @@ jQuery(document).ready(function ($) {
         return job.then(
             () => setStatus(index, labels.done, 'success'),
             message => setStatus(index, message, 'error')
-        ).always(() => $buttons.prop('disabled', false));
+        ).always(() => {
+            $buttons.prop('disabled', false);
+            $btn.removeClass('is-busy');
+        });
     }
 
     $(document).on('click', '.mpa-auto-btn', function () {
