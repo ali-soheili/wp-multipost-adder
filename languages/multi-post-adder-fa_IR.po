@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.11\n"
+"Project-Id-Version: Multi Post Adder 1.12\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -464,4 +464,30 @@ msgstr "ابتدا متن سفارشی را در کادر اتوماسیون و�
 #, python-brace-format
 msgid "Any text or HTML. Inserted exactly as typed wherever {custom_text} appears."
 msgstr "هر متن یا HTML. هر جا {custom_text} باشد، دقیقاً همان‌طور که نوشته شده درج می‌شود."
+
+msgid "Import setup"
+msgstr "وارد کردن تنظیمات"
+
+msgid "Export setup"
+msgstr "خروجی گرفتن از تنظیمات"
+
+msgid "Setup imported."
+msgstr "تنظیمات وارد شد."
+
+msgid "This file is not a valid Multi Post Adder setup."
+msgstr "این فایل یک فایل تنظیمات معتبر Multi Post Adder نیست."
+
+#, php-format, python-format
+msgid "Category not found, skipped: %s"
+msgstr "دسته‌بندی پیدا نشد و نادیده گرفته شد: %s"
+
+#, php-format, python-format
+msgid "Content preset not found, skipped: %s"
+msgstr "قالب آماده محتوا پیدا نشد و نادیده گرفته شد: %s"
+
+msgid "Importing changes the number of posts, which clears what you have typed in the posts below. Continue?"
+msgstr "وارد کردن تنظیمات تعداد نوشته‌ها را تغییر می‌دهد و آنچه در نوشته‌های پایین نوشته‌اید پاک می‌شود. ادامه می‌دهید؟"
+
+msgid "Dismiss this notice."
+msgstr "بستن این پیام."
 

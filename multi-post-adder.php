@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.11
+ * Version: 1.12
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -74,6 +74,14 @@ add_action('admin_enqueue_scripts', function ($hook) {
         'downloadLink' => __('Download link', 'multi-post-adder'),
         'fileName' => __('File name', 'multi-post-adder'),
         'customText' => __('Custom text', 'multi-post-adder'),
+        'setupImported' => __('Setup imported.', 'multi-post-adder'),
+        'setupInvalid' => __('This file is not a valid Multi Post Adder setup.', 'multi-post-adder'),
+        /* translators: %s: category path, e.g. Software › Windows */
+        'categoryMissing' => __('Category not found, skipped: %s', 'multi-post-adder'),
+        /* translators: %s: preset name */
+        'presetMissing' => __('Content preset not found, skipped: %s', 'multi-post-adder'),
+        'confirmRebuild' => __('Importing changes the number of posts, which clears what you have typed in the posts below. Continue?', 'multi-post-adder'),
+        'dismiss' => __('Dismiss this notice.', 'multi-post-adder'),
         'enterCustomText' => __('Enter custom text in the Automation box first.', 'multi-post-adder'),
         'runAll' => __('Run all', 'multi-post-adder'),
         'working' => __('Working…', 'multi-post-adder'),
@@ -548,7 +556,17 @@ function mpa_admin_page() {
     $automation = mpa_get_automation_settings();
     ?>
     <div class="wrap">
-        <h1><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
+        <h1 class="wp-heading-inline"><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
+        <button type="button" class="page-title-action mpa-import-setup">
+            <span class="dashicons dashicons-upload" aria-hidden="true"></span><?php _e('Import setup', 'multi-post-adder'); ?>
+        </button>
+        <button type="button" class="page-title-action mpa-export-setup">
+            <span class="dashicons dashicons-download" aria-hidden="true"></span><?php _e('Export setup', 'multi-post-adder'); ?>
+        </button>
+        <input type="file" id="mpa-setup-file" accept=".json,application/json" hidden>
+        <hr class="wp-header-end">
+        <div id="mpa-setup-notice" class="notice is-dismissible" hidden><p></p></div>
+
         <form id="mpa-form" method="post">
             <section class="mpa-global-adjustments">
                 <h2><?php _e('Global Adjustments', 'multi-post-adder'); ?></h2>

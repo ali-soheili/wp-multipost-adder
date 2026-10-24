@@ -66,6 +66,16 @@ Example pattern: `https://dl.example.com/files/{file_name}.zip`
 
 Developers can change the translation languages with the `mpa_translate_source_lang` and `mpa_translate_target_lang` filters.
 
+## Setup files (import / export)
+
+Use **Export setup** (next to the page title) to save the current setup as a `.json` file, and **Import setup** to load it again later or on another site. A setup file covers:
+
+- **Global Adjustments:** number of posts, categories, hashtags, content preset
+- **Global Custom Fields:** on/off and the fields
+- **Automation:** on/off, download link pattern and custom text
+
+Anything empty or missing in the file is left as it is on the page, so you can keep partial setup files. Categories are stored with their ID and full path (e.g. `Software › Windows › Utilities`), so categories with the same name under different parents are never mixed up. On another site they are matched by path. Categories or presets that can't be found are skipped and listed in a notice.
+
 ## Scheduling
 
 Turn on **Scheduling** (above the Publish button) to publish the posts later:

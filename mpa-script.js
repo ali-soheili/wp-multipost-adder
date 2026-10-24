@@ -17,6 +17,12 @@ jQuery(document).ready(function ($) {
         downloadLink: 'Download link',
         fileName: 'File name',
         customText: 'Custom text',
+        setupImported: 'Setup imported.',
+        setupInvalid: 'This file is not a valid Multi Post Adder setup.',
+        categoryMissing: 'Category not found, skipped: %s',
+        presetMissing: 'Content preset not found, skipped: %s',
+        confirmRebuild: 'Importing changes the number of posts, which clears what you have typed in the posts below. Continue?',
+        dismiss: 'Dismiss this notice.',
         enterCustomText: 'Enter custom text in the Automation box first.',
         runAll: 'Run all',
         working: 'Working…',
@@ -831,4 +837,217 @@ jQuery(document).ready(function ($) {
 
         updateSchedule();
     }
+    /* ------------------------------------------------------------------
+     * Setup file: export / import (JSON)
+     *
+     * Covers Global Adjustments, Global Custom Fields and Automation.
+     * On import, anything empty or missing in the file is left as it is.
+     * Categories are stored with their ID *and* full name path, so equal
+     * names under different parents are never mixed up.
+     * ---------------------------------------------------------------- */
+
+    const SETUP_FORMAT = 1;
+    const $setupNotice = $('#mpa-setup-notice');
+
+    function isEmptyValue(v) {
+        return v === undefined || v === null || (typeof v === 'string' && v.trim() === '') || (Array.isArray(v) && v.length === 0);
+    }
+
+    function categoryBoxes() {
+        return $('#mpa-cat-select input[name="mpa-category[]"]');
+    }
+
+    function categoryNamePath(box) {
+        return String($(box).data('path')).split(',').map(id => {
+            return String(categoryBoxes().filter(`[value="${id}"]`).data('name') || '');
+        });
+    }
+
+    function readGlobalFields() {
+        const fields = [];
+        $('#mpa-global-meta .mpa-meta-row').each(function () {
+            const key = ($(this).find('select').val() || $(this).find('input[name$="[custom_key]"]').val() || '').trim();
+            const value = $(this).find('input[name$="[value]"]').val() || '';
+            if (key) fields.push({ key, value });
+        });
+        return fields;
+    }
+
+    function exportSetup() {
+        const $preset = $('#mpa-content-preset option:selected');
+        const setup = {
+            plugin: 'multi-post-adder',
+            format: SETUP_FORMAT,
+            exported: new Date().toISOString(),
+            adjustments: {
+                post_count: parseInt($('#mpa-count').val(), 10) || '',
+                categories: categoryBoxes().filter(':checked').get().map(box => ({
+                    id: parseInt(box.value, 10),
+                    path: categoryNamePath(box)
+                })),
+                hashtags: $('#mpa-hashtags').val() || '',
+                content_preset: $preset.val() ? { id: $preset.val(), name: $preset.text().trim() } : ''
+            },
+            custom_fields: {
+                enabled: $('#mpa-global-meta-enabled').is(':checked'),
+                fields: readGlobalFields()
+            },
+            automation: {
+                enabled: $('#mpa-automation-enabled').is(':checked'),
+                download_pattern: $('#mpa-download-pattern').val() || '',
+                custom_text: $('#mpa-custom-text').val() || ''
+            }
+        };
+
+        const blob = new Blob([JSON.stringify(setup, null, 2)], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `mpa-setup-${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // Finds the checkbox for an exported category without mixing up equal names.
+    function findCategory(entry) {
+        const wanted = Array.isArray(entry.path) ? entry.path.map(n => String(n).trim().toLowerCase()) : [];
+        const samePath = box => {
+            const path = categoryNamePath(box).map(n => n.trim().toLowerCase());
+            return path.length === wanted.length && path.every((n, i) => n === wanted[i]);
+        };
+
+        // 1. Same ID and same path (same site, nothing renamed).
+        const byId = entry.id ? categoryBoxes().filter(`[value="${parseInt(entry.id, 10)}"]`).get(0) : null;
+        if (byId && (!wanted.length || samePath(byId))) return byId;
+
+        // 2. Full path match (another site, or IDs differ).
+        if (wanted.length) {
+            const byPath = categoryBoxes().get().find(samePath);
+            if (byPath) return byPath;
+        }
+
+        // 3. Same ID and same own name (a parent was renamed or moved).
+        if (byId && wanted.length && String($(byId).data('name')).trim().toLowerCase() === wanted[wanted.length - 1]) return byId;
+
+        return null;
+    }
+
+    function showSetupNotice(type, lines) {
+        $setupNotice.removeClass('notice-success notice-warning notice-error').addClass(`notice-${type}`);
+        $setupNotice.find('p').html(lines.map(line => $('<span>').text(line).html()).join('<br>'));
+        $setupNotice.prop('hidden', false);
+        if (!$setupNotice.find('.notice-dismiss').length) {
+            $setupNotice.append(`<button type="button" class="notice-dismiss"><span class="screen-reader-text">${labels.dismiss}</span></button>`);
+        }
+        $('html, body').animate({ scrollTop: 0 }, 150);
+    }
+
+    $setupNotice.on('click', '.notice-dismiss', () => $setupNotice.prop('hidden', true));
+
+    function postsHaveContent() {
+        let filled = false;
+        $('#mpa-posts-container .mpa-post-block').each(function (i) {
+            if ($(this).find(`input[name="mpa-posts[${i}][title]"]`).val() || (getEditorContent(`editor-${i}`) || '').trim()) filled = true;
+        });
+        return filled;
+    }
+
+    function importSetup(setup) {
+        if (!setup || typeof setup !== 'object' || setup.plugin !== 'multi-post-adder') {
+            showSetupNotice('error', [labels.setupInvalid]);
+            return;
+        }
+
+        const warnings = [];
+        const adj = setup.adjustments || {};
+        const meta = setup.custom_fields || {};
+        const auto = setup.automation || {};
+
+        // --- Global Adjustments ---
+        const newCount = parseInt(adj.post_count, 10);
+        const countChanges = !isEmptyValue(adj.post_count) && newCount > 0 && newCount !== parseInt($('#mpa-count').val(), 10);
+        if (countChanges && postsHaveContent() && !window.confirm(labels.confirmRebuild)) return;
+
+        if (!isEmptyValue(adj.categories) && Array.isArray(adj.categories)) {
+            const found = [];
+            adj.categories.forEach(entry => {
+                const box = findCategory(entry || {});
+                if (box) found.push(box);
+                else warnings.push(labels.categoryMissing.replace('%s', (entry && Array.isArray(entry.path) ? entry.path.join(' › ') : `#${entry && entry.id}`)));
+            });
+            if (found.length) {
+                categoryBoxes().prop('checked', false);
+                $(found).prop('checked', true);
+                categoryBoxes().first().trigger('change');
+            }
+        }
+
+        if (!isEmptyValue(adj.hashtags)) $('#mpa-hashtags').val(String(adj.hashtags));
+
+        let presetChanged = false;
+        if (!isEmptyValue(adj.content_preset) && typeof adj.content_preset === 'object') {
+            const $options = $('#mpa-content-preset option');
+            let $match = $options.filter(function () { return this.value && this.value === adj.content_preset.id; });
+            if (!$match.length && adj.content_preset.name) {
+                const name = String(adj.content_preset.name).trim().toLowerCase();
+                $match = $options.filter(function () { return this.value && $(this).text().trim().toLowerCase() === name; });
+            }
+            if ($match.length) {
+                presetChanged = $('#mpa-content-preset').val() !== $match.first().val();
+                $('#mpa-content-preset').val($match.first().val());
+            } else {
+                warnings.push(labels.presetMissing.replace('%s', adj.content_preset.name || adj.content_preset.id || ''));
+            }
+        }
+
+        if (countChanges) {
+            $('#mpa-count').val(newCount).trigger('change'); // Rebuilds the posts and applies the preset.
+        } else if (presetChanged) {
+            $('#mpa-content-preset').trigger('change');
+        }
+
+        // --- Global Custom Fields ---
+        if (!isEmptyValue(meta.fields) && Array.isArray(meta.fields)) {
+            const fields = meta.fields.filter(f => f && !isEmptyValue(f.key));
+            if (fields.length) {
+                $('#mpa-global-meta').empty();
+                fields.forEach(f => {
+                    const $row = addGlobalMetaRow();
+                    const key = String(f.key).trim();
+                    const $select = $row.find('select');
+                    if ($select.find('option').filter(function () { return this.value === key; }).length) $select.val(key);
+                    else $row.find('input[name$="[custom_key]"]').val(key);
+                    $row.find('input[name$="[value]"]').val(isEmptyValue(f.value) ? '' : String(f.value));
+                });
+            }
+        }
+        if (typeof meta.enabled === 'boolean') {
+            $('#mpa-global-meta-enabled').prop('checked', meta.enabled).trigger('change');
+        } else {
+            updateGlobalMeta();
+        }
+
+        // --- Automation ---
+        if (!isEmptyValue(auto.download_pattern)) $('#mpa-download-pattern').val(String(auto.download_pattern)).trigger('input');
+        if (!isEmptyValue(auto.custom_text)) $('#mpa-custom-text').val(String(auto.custom_text)).trigger('input');
+        if (typeof auto.enabled === 'boolean') $('#mpa-automation-enabled').prop('checked', auto.enabled).trigger('change');
+
+        showSetupNotice(warnings.length ? 'warning' : 'success', [labels.setupImported].concat(warnings));
+    }
+
+    $('.mpa-export-setup').on('click', exportSetup);
+    $('.mpa-import-setup').on('click', () => $('#mpa-setup-file').val('').trigger('click'));
+    $('#mpa-setup-file').on('change', function () {
+        const file = this.files && this.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = () => {
+            let data = null;
+            try { data = JSON.parse(String(reader.result).replace(/^﻿/, '')); } catch (e) { data = null; }
+            importSetup(data);
+        };
+        reader.readAsText(file);
+    });
 });

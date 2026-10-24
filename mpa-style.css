@@ -1165,3 +1165,23 @@
         height: 34px;
     }
 }
+
+/* Import / Export setup buttons next to the page title */
+.wrap .page-title-action.mpa-import-setup,
+.wrap .page-title-action.mpa-export-setup {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+}
+
+.page-title-action .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    line-height: 16px;
+}
+
+#mpa-setup-notice[hidden] {
+    display: none;
+}
