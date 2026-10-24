@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.12\n"
+"Project-Id-Version: Multi Post Adder 1.13\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -490,4 +490,22 @@ msgstr "وارد کردن تنظیمات تعداد نوشته‌ها را تغ�
 
 msgid "Dismiss this notice."
 msgstr "بستن این پیام."
+
+msgid "Google Translate could not be reached. Translation needs internet access; everything else works without it."
+msgstr "دسترسی به گوگل ترنسلیت ممکن نشد. ترجمه به اینترنت نیاز دارد؛ بقیه امکانات بدون آن کار می‌کنند."
+
+msgid "Checking GitHub for updates is turned off."
+msgstr "بررسی به‌روزرسانی از گیت‌هاب خاموش است."
+
+msgid "Update checks"
+msgstr "بررسی به‌روزرسانی"
+
+msgid "Check GitHub for new versions"
+msgstr "بررسی نسخه‌های جدید در گیت‌هاب"
+
+msgid "Turn this off on sites without internet access (e.g. an intranet). The plugin works fully without it."
+msgstr "در سایت‌های بدون دسترسی به اینترنت (مثلاً اینترانت) این گزینه را خاموش کنید. افزونه بدون آن کاملاً کار می‌کند."
+
+msgid "Update checks are turned off."
+msgstr "بررسی به‌روزرسانی خاموش است."
 

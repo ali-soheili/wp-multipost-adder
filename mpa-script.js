@@ -429,15 +429,18 @@ jQuery(document).ready(function ($) {
         if (typeof window.fetch !== 'function') {
             viaServer();
         } else {
-            fetch(url, { credentials: 'omit' })
-                .then(r => (r.ok ? r.json() : Promise.reject(r.status)))
+            // Give up quickly when Google is unreachable (e.g. an intranet without internet).
+            const controller = typeof AbortController === 'function' ? new AbortController() : null;
+            const timer = controller ? setTimeout(() => controller.abort(), 6000) : null;
+            fetch(url, { credentials: 'omit', signal: controller ? controller.signal : undefined })
+                .then(r => { clearTimeout(timer); return r.ok ? r.json() : Promise.reject(r.status); })
                 .then(data => {
                     const translated = parseGoogleResponse(data);
                     if (!translated) return Promise.reject('empty');
                     translationCache[cacheKey] = translated;
                     deferred.resolve(translated);
                 })
-                .catch(viaServer);
+                .catch(() => { clearTimeout(timer); viaServer(); });
         }
 
         return deferred.promise();

@@ -108,6 +108,15 @@ Sites check GitHub roughly every 12 hours. To check immediately, use **Settings 
 
 Requires WordPress 5.8 or newer (uses the `Update URI` plugin header). The plugin folder name on the site is kept as-is during updates.
 
+## Offline / intranet use
+
+The plugin loads only its own files and WordPress's built-in scripts, styles and icons; nothing comes from a CDN. On a site without internet access everything works except two optional online features:
+
+- **Translate title** needs Google Translate. Offline it stops after about 6 seconds with a clear message.
+- **Updates from GitHub** can be turned off under **Settings → MPA Settings → Updates → Update checks**. If left on, a failed check is retried at most every 6 hours.
+
+Scheduled posts are published by WP-Cron, which runs on your own server and needs no internet.
+
 ## Project Structure
 
 ```text

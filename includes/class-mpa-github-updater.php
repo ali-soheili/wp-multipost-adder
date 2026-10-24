@@ -23,7 +23,7 @@ class MPA_GitHub_Updater {
     const OPTION          = 'mpa_updater_settings';
     const CACHE_KEY       = 'mpa_github_update_data';
     const CACHE_TTL       = 6 * HOUR_IN_SECONDS;
-    const ERROR_TTL       = HOUR_IN_SECONDS;
+    const ERROR_TTL       = 6 * HOUR_IN_SECONDS;
     const DEFAULT_REPO    = 'ali-soheili/wp-multipost-adder';
     const DEFAULT_BRANCH  = 'main';
 
@@ -66,6 +66,7 @@ class MPA_GitHub_Updater {
             'branch' => self::DEFAULT_BRANCH,
             'source' => 'branch',
             'token'  => '',
+            'enabled' => true,
         ]);
     }
 
@@ -90,7 +91,7 @@ class MPA_GitHub_Updater {
 
     private function api_get($path, $accept = 'application/vnd.github+json') {
         $response = wp_remote_get($this->api_base() . $path, [
-            'timeout' => 15,
+            'timeout' => 8,
             'headers' => ['Accept' => $accept],
         ]);
 
@@ -125,7 +126,17 @@ class MPA_GitHub_Updater {
      * @param bool $force Skip the cache.
      * @return array|WP_Error
      */
+    /** Update checks can be switched off, e.g. on sites without internet access. */
+    public static function is_enabled() {
+        $settings = self::get_settings();
+        return !empty($settings['enabled']);
+    }
+
     public function get_remote_data($force = false) {
+        if (!self::is_enabled()) {
+            return new WP_Error('mpa_updates_disabled', __('Checking GitHub for updates is turned off.', 'multi-post-adder'));
+        }
+
         // The "Check again" button on Dashboard → Updates should always hit GitHub.
         if (!$force && is_admin() && !empty($_GET['force-check'])) $force = true;
 
@@ -435,7 +446,7 @@ class MPA_GitHub_Updater {
     public function plugin_row_meta($links, $file) {
         if ($file !== $this->basename) return $links;
 
-        if (current_user_can('update_plugins')) {
+        if (current_user_can('update_plugins') && self::is_enabled()) {
             $links[] = '<a href="' . esc_url(wp_nonce_url(admin_url('admin-post.php?action=mpa_check_updates'), 'mpa_check_updates')) . '">' . esc_html__('Check for updates', 'multi-post-adder') . '</a>';
         }
         return $links;

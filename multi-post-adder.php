@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.12
+ * Version: 1.13
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -164,10 +164,13 @@ function mpa_google_translate($text, $source, $target) {
     $last_code = 0;
     foreach ($endpoints as $url) {
         $response = wp_remote_get($url, [
-            'timeout' => 12,
+            'timeout' => 6,
             'user-agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
         ]);
-        if (is_wp_error($response)) continue;
+        if (is_wp_error($response)) {
+            // No connection at all (offline / intranet / blocked): trying other Google hosts won't help.
+            return new WP_Error('mpa_translate_offline', __('Google Translate could not be reached. Translation needs internet access; everything else works without it.', 'multi-post-adder'));
+        }
 
         $last_code = (int) wp_remote_retrieve_response_code($response);
         if ($last_code !== 200) continue;
@@ -475,7 +478,9 @@ function mpa_updates_tab() {
             <tr>
                 <th scope="row"><?php _e('Latest version on GitHub', 'multi-post-adder'); ?></th>
                 <td>
-                    <?php if (is_array($cached) && !empty($cached['error'])) : ?>
+                    <?php if (!MPA_GitHub_Updater::is_enabled()) : ?>
+                        <em><?php _e('Update checks are turned off.', 'multi-post-adder'); ?></em>
+                    <?php elseif (is_array($cached) && !empty($cached['error'])) : ?>
                         <span style="color:#b32d2e;"><?php echo esc_html($cached['error']); ?></span>
                     <?php elseif (is_array($cached) && !empty($cached['version'])) : ?>
                         <code><?php echo esc_html($cached['version']); ?></code>
@@ -498,7 +503,9 @@ function mpa_updates_tab() {
                 </td>
             </tr>
         </table>
+        <?php if (MPA_GitHub_Updater::is_enabled()) : ?>
         <p><a class="button" href="<?php echo esc_url($check_url); ?>"><?php _e('Check for updates now', 'multi-post-adder'); ?></a></p>
+        <?php endif; ?>
 
         <hr class="mpa-presets-divider">
 
@@ -507,6 +514,16 @@ function mpa_updates_tab() {
             <?php wp_nonce_field('mpa_save_updates', 'mpa_updates_nonce'); ?>
             <input type="hidden" name="mpa-settings-action" value="save_updates">
             <table class="form-table" role="presentation">
+                <tr>
+                    <th scope="row"><?php _e('Update checks', 'multi-post-adder'); ?></th>
+                    <td>
+                        <label>
+                            <input type="checkbox" name="mpa-update-enabled" value="1" <?php checked(!empty($settings['enabled'])); ?>>
+                            <?php _e('Check GitHub for new versions', 'multi-post-adder'); ?>
+                        </label>
+                        <p class="description"><?php _e('Turn this off on sites without internet access (e.g. an intranet). The plugin works fully without it.', 'multi-post-adder'); ?></p>
+                    </td>
+                </tr>
                 <tr>
                     <th scope="row"><label for="mpa-update-repo"><?php _e('Repository', 'multi-post-adder'); ?></label></th>
                     <td>
@@ -782,6 +799,7 @@ add_action('admin_init', function () {
         'branch' => $branch ?: MPA_GitHub_Updater::DEFAULT_BRANCH,
         'source' => $source,
         'token'  => $token,
+        'enabled' => !empty($_POST['mpa-update-enabled']),
     ]);
 
     wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=updates&mpa-message=updates-saved'));
