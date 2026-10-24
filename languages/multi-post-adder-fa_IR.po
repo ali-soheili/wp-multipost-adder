@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.10\n"
+"Project-Id-Version: Multi Post Adder 1.11\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -451,4 +451,17 @@ msgstr "فیلدهای سفارشی که به همه نوشته‌ها افزو�
 
 msgid "Add Field"
 msgstr "افزودن فیلد"
+
+msgid "Custom text"
+msgstr "متن سفارشی"
+
+msgid "Replaced with the custom text"
+msgstr "با متن سفارشی جایگزین می‌شود"
+
+msgid "Enter custom text in the Automation box first."
+msgstr "ابتدا متن سفارشی را در کادر اتوماسیون وارد کنید."
+
+#, python-brace-format
+msgid "Any text or HTML. Inserted exactly as typed wherever {custom_text} appears."
+msgstr "هر متن یا HTML. هر جا {custom_text} باشد، دقیقاً همان‌طور که نوشته شده درج می‌شود."
 

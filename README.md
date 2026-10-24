@@ -58,8 +58,9 @@ Tick **Automation** on the Add Multiple Posts page to show the Automation box an
 | `{translated_title}` | Translate title | The post title translated from Persian to English (Google Translate) |
 | `{download_link}` | Download link | The **Download link pattern** from the Automation box, with `{file_name}` filled in for that post |
 | `{file_name}` | File name | The featured image's file name, without extension |
+| `{custom_text}` | Custom text | The **Custom text** from the Automation box, exactly as typed (text or HTML) |
 
-Each post's buttons work independently. **Run all** runs all three on one post, and **Run all automations on every post** does it for every post. Clicking a button again updates the value it inserted before, e.g. after changing the featured image. The Automation on/off state and the download link pattern are remembered per user.
+Each post's buttons work independently. **Run all** runs every automation on one post, and **Run all automations on every post** does it for every post. Clicking a button again updates the value it inserted before, e.g. after changing the featured image. The Automation on/off state, the download link pattern and the custom text are remembered per user.
 
 Example pattern: `https://dl.example.com/files/{file_name}.zip`
 

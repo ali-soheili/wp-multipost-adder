@@ -432,6 +432,43 @@
     line-height: 1;
 }
 
+/* Automation box: one column, sections stacked top to bottom */
+#mpa-automation .mpa-automation-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    padding: 0 16px;
+}
+
+#mpa-automation .mpa-automation-stack[hidden] {
+    display: none;
+}
+
+.mpa-automation-block {
+    padding: 16px 0;
+    border-bottom: 1px solid #f0f0f1;
+}
+
+.mpa-automation-field + .mpa-automation-field {
+    margin-top: 16px;
+}
+
+.mpa-automation-field textarea {
+    display: block;
+    width: 100%;
+    min-height: 64px;
+    margin: 0;
+    font-family: Consolas, Monaco, monospace;
+    font-size: 13px;
+    resize: vertical;
+    box-sizing: border-box;
+}
+
+#mpa-automation .mpa-automation-actions {
+    margin: 0;
+    padding: 14px 0 16px;
+}
+
 /* ==========================================================================
    Per-post toolbar (visible only while Automation is on)
    ========================================================================== */

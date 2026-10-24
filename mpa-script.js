@@ -16,6 +16,8 @@ jQuery(document).ready(function ($) {
         translateTitle: 'Translate title',
         downloadLink: 'Download link',
         fileName: 'File name',
+        customText: 'Custom text',
+        enterCustomText: 'Enter custom text in the Automation box first.',
         runAll: 'Run all',
         working: 'Working…',
         done: 'Updated.',
@@ -69,6 +71,7 @@ jQuery(document).ready(function ($) {
                         <button type="button" class="mpa-tool mpa-auto-btn" data-action="translate" data-index="${i}" data-tip="${labels.translateTitle}" aria-label="${labels.translateTitle}"><span class="dashicons dashicons-translation" aria-hidden="true"></span></button>
                         <button type="button" class="mpa-tool mpa-auto-btn" data-action="download" data-index="${i}" data-tip="${labels.downloadLink}" aria-label="${labels.downloadLink}"><span class="dashicons dashicons-download" aria-hidden="true"></span></button>
                         <button type="button" class="mpa-tool mpa-auto-btn" data-action="filename" data-index="${i}" data-tip="${labels.fileName}" aria-label="${labels.fileName}"><span class="dashicons dashicons-media-default" aria-hidden="true"></span></button>
+                        <button type="button" class="mpa-tool mpa-auto-btn" data-action="customtext" data-index="${i}" data-tip="${labels.customText}" aria-label="${labels.customText}"><span class="dashicons dashicons-editor-paste-text" aria-hidden="true"></span></button>
                         <span class="mpa-tools-sep" aria-hidden="true"></span>
                         <button type="button" class="mpa-tool mpa-tool-primary mpa-auto-btn" data-action="all" data-index="${i}" data-tip="${labels.runAll}" aria-label="${labels.runAll}"><span class="dashicons dashicons-update" aria-hidden="true"></span></button>
                     </div>
@@ -243,6 +246,7 @@ jQuery(document).ready(function ($) {
     const $automationBox = $('#mpa-automation');
     const $automationToggle = $('#mpa-automation-enabled');
     const $pattern = $('#mpa-download-pattern');
+    const $customText = $('#mpa-custom-text');
 
     function setAutomationActive(active) {
         $automationBox.toggleClass('is-active', active);
@@ -259,7 +263,8 @@ jQuery(document).ready(function ($) {
                 action: 'mpa_save_automation',
                 nonce: automation.nonce,
                 enabled: $automationToggle.is(':checked') ? 1 : 0,
-                download_pattern: $pattern.val()
+                download_pattern: $pattern.val(),
+                custom_text: $customText.val()
             });
         }, 400);
     }
@@ -270,6 +275,7 @@ jQuery(document).ready(function ($) {
         saveAutomationSettings();
     });
     $pattern.on('change input', saveAutomationSettings);
+    $customText.on('change input', saveAutomationSettings);
 
     // Insert {file_name} at the cursor position in the pattern field.
     $(document).on('click', '.mpa-insert-token', function () {
@@ -463,15 +469,23 @@ jQuery(document).ready(function ($) {
         return fillPlaceholder(index, 'file_name', fileName) ? true : notFound('file_name');
     }
 
+    function applyCustomText(index) {
+        const text = $customText.val() || '';
+        if (!text.trim()) return labels.enterCustomText;
+        // Free text: inserted exactly as typed.
+        return fillPlaceholder(index, 'custom_text', text, true) ? true : notFound('custom_text');
+    }
+
     // Runs one action on one post. Resolves with nothing, rejects with an error message.
     function runAction(index, action) {
         if (action === 'translate') return translateTitle(index);
 
-        const result = action === 'download' ? applyDownloadLink(index) : applyFileName(index);
+        const handlers = { download: applyDownloadLink, filename: applyFileName, customtext: applyCustomText };
+        const result = handlers[action](index);
         return result === true ? $.Deferred().resolve().promise() : $.Deferred().reject(result).promise();
     }
 
-    const stepPlaceholders = { download: 'download_link', filename: 'file_name', translate: 'translated_title' };
+    const stepPlaceholders = { download: 'download_link', filename: 'file_name', customtext: 'custom_text', translate: 'translated_title' };
 
     // A step is needed when its placeholder (or a value it inserted before) is in the content.
     function postUses(index, key) {
@@ -483,7 +497,7 @@ jQuery(document).ready(function ($) {
     function runAllOnPost(index) {
         const errors = [];
         // Download link first (it may itself contain {file_name}), then file name, then translation.
-        const steps = ['download', 'filename', 'translate'].filter(step => postUses(index, stepPlaceholders[step]));
+        const steps = ['download', 'customtext', 'filename', 'translate'].filter(step => postUses(index, stepPlaceholders[step]));
         if (!steps.length) return $.Deferred().resolve([labels.noPlaceholders]).promise();
         let chain = $.Deferred().resolve().promise();
 
