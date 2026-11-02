@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.13
+ * Version: 1.14
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -13,6 +13,7 @@ if (!defined('ABSPATH')) exit;
 
 require_once __DIR__ . '/includes/class-mpa-github-updater.php';
 new MPA_GitHub_Updater(__FILE__);
+require_once __DIR__ . '/includes/class-mpa-ai.php';
 
 add_action('plugins_loaded', function() {
     load_plugin_textdomain('multi-post-adder', false, dirname(plugin_basename(__FILE__)) . '/languages');
@@ -28,6 +29,15 @@ add_action('admin_menu', function () {
         'mpa_admin_page'
     );
 
+    add_submenu_page(
+        'edit.php',
+        __('Add Posts with AI', 'multi-post-adder'),
+        __('Add Posts with AI', 'multi-post-adder'),
+        'edit_posts',
+        'add-multiple-posts-ai',
+        'mpa_ai_page'
+    );
+
     add_options_page(
         __('MPA Settings', 'multi-post-adder'),
         __('MPA Settings', 'multi-post-adder'),
@@ -39,19 +49,77 @@ add_action('admin_menu', function () {
 
 // Enqueue scripts and styles
 add_action('admin_enqueue_scripts', function ($hook) {
+    $version = get_file_data(__FILE__, ['Version' => 'Version'])['Version'];
+
     if ($hook === 'settings_page_mpa-settings') {
         wp_enqueue_media();
         wp_enqueue_editor();
-        wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css');
+        wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css', [], $version);
+        wp_enqueue_script('mpa-ai', plugin_dir_url(__FILE__) . 'mpa-ai.js', ['jquery'], $version, true);
+        wp_localize_script('mpa-ai', 'mpa_ai_admin', [
+            'ajaxUrl' => admin_url('admin-ajax.php'),
+            'nonce' => wp_create_nonce('mpa_ai_settings'),
+            'i18n' => [
+                'checking' => __('Checking…', 'multi-post-adder'),
+                /* translators: %d: number of models */
+                'keyOk' => __('Key works · %d models found', 'multi-post-adder'),
+                'failed' => __('Check failed.', 'multi-post-adder'),
+            ],
+        ]);
         return;
     }
 
-    if ($hook !== 'posts_page_add-multiple-posts') return;
+    $is_ai_page = ($hook === 'posts_page_add-multiple-posts-ai');
+    if ($hook !== 'posts_page_add-multiple-posts' && !$is_ai_page) return;
 
     wp_enqueue_media();
     wp_enqueue_editor(); //  Required for wp.editor
-    wp_enqueue_script('mpa-script', plugin_dir_url(__FILE__) . 'mpa-script.js', ['jquery', 'wp-editor'], null, true);
-    wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css');
+    wp_enqueue_script('mpa-script', plugin_dir_url(__FILE__) . 'mpa-script.js', ['jquery', 'wp-editor'], $version, true);
+    wp_enqueue_style('mpa-style', plugin_dir_url(__FILE__) . 'mpa-style.css', [], $version);
+
+    if ($is_ai_page) {
+        wp_enqueue_script('mpa-ai', plugin_dir_url(__FILE__) . 'mpa-ai.js', ['jquery', 'jquery-ui-sortable', 'mpa-script'], $version, true);
+        wp_localize_script('mpa-ai', 'mpa_ai', array_merge(MPA_AI::public_settings(), [
+            'i18n' => [
+                'selectImages' => __('Select or upload images', 'multi-post-adder'),
+                'useImages' => __('Use these images', 'multi-post-adder'),
+                /* translators: %d: number of images */
+                'imageCount' => __('%d images selected · one post per image', 'multi-post-adder'),
+                'oneImage' => __('1 image selected · one post', 'multi-post-adder'),
+                'remove' => __('Remove', 'multi-post-adder'),
+                'next' => __('Next', 'multi-post-adder'),
+                'generate' => __('Generate', 'multi-post-adder'),
+                'needImages' => __('Select at least one image.', 'multi-post-adder'),
+                'needSetup' => __('Load a setup file to continue.', 'multi-post-adder'),
+                'needKey' => __('Add an API key in the AI settings first.', 'multi-post-adder'),
+                'invalidSetup' => __('This file is not a valid Multi Post Adder setup.', 'multi-post-adder'),
+                'categories' => __('Categories', 'multi-post-adder'),
+                'hashtags' => __('Hashtags', 'multi-post-adder'),
+                'preset' => __('Content preset', 'multi-post-adder'),
+                'customFields' => __('Custom fields', 'multi-post-adder'),
+                'automation' => __('Automation', 'multi-post-adder'),
+                'on' => __('on', 'multi-post-adder'),
+                'off' => __('off', 'multi-post-adder'),
+                'none' => __('—', 'multi-post-adder'),
+                'postCountIgnored' => __('The number of posts in the file is ignored; the images decide.', 'multi-post-adder'),
+                'writing' => __('Writing titles and descriptions…', 'multi-post-adder'),
+                'doneAll' => __('All done. Check the results, then continue.', 'multi-post-adder'),
+                'doneOne' => __('1 image failed. Retry it, or continue and fill that post yourself.', 'multi-post-adder'),
+                /* translators: %d: number of failed images */
+                'doneSome' => __('%d images failed. Retry them, or continue and fill those posts yourself.', 'multi-post-adder'),
+                /* translators: 1: done count, 2: total */
+                'progress' => __('%1$d of %2$d', 'multi-post-adder'),
+                'waiting' => __('Waiting', 'multi-post-adder'),
+                'retry' => __('Retry', 'multi-post-adder'),
+                'retryFailed' => __('Retry failed', 'multi-post-adder'),
+                'continue' => __('Continue to posts', 'multi-post-adder'),
+                'continueAnyway' => __('Continue anyway', 'multi-post-adder'),
+                'failed' => __('Failed', 'multi-post-adder'),
+                'stop' => __('Stop', 'multi-post-adder'),
+                'stopped' => __('Stopped', 'multi-post-adder'),
+            ],
+        ]));
+    }
 
     global $wpdb;
     $keys = $wpdb->get_col("SELECT DISTINCT meta_key FROM $wpdb->postmeta WHERE meta_key NOT LIKE '\\_%' LIMIT 50");
@@ -74,6 +142,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
         'downloadLink' => __('Download link', 'multi-post-adder'),
         'fileName' => __('File name', 'multi-post-adder'),
         'customText' => __('Custom text', 'multi-post-adder'),
+        'imageAlt' => __('Image ALT text (also saved as the image title):', 'multi-post-adder'),
         'setupImported' => __('Setup imported.', 'multi-post-adder'),
         'setupInvalid' => __('This file is not a valid Multi Post Adder setup.', 'multi-post-adder'),
         /* translators: %s: category path, e.g. Software › Windows */
@@ -314,6 +383,7 @@ function mpa_settings_page() {
                 'saved'            => __('Preset saved.', 'multi-post-adder'),
                 'updates-saved'    => __('Update settings saved.', 'multi-post-adder'),
                 'updates-checked'  => __('Checked GitHub for updates.', 'multi-post-adder'),
+                'ai-saved'         => __('AI settings saved.', 'multi-post-adder'),
             ];
             $message_key = sanitize_key($_GET['mpa-message']);
             if (isset($messages[$message_key])) : ?>
@@ -326,6 +396,9 @@ function mpa_settings_page() {
             <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=presets')); ?>" class="nav-tab <?php echo $active_tab === 'presets' ? 'nav-tab-active' : ''; ?>">
                 <?php _e('Presets', 'multi-post-adder'); ?>
             </a>
+            <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=ai')); ?>" class="nav-tab <?php echo $active_tab === 'ai' ? 'nav-tab-active' : ''; ?>">
+                <?php _e('AI', 'multi-post-adder'); ?>
+            </a>
             <?php if (current_user_can('update_plugins')) : ?>
             <a href="<?php echo esc_url(admin_url('options-general.php?page=mpa-settings&tab=updates')); ?>" class="nav-tab <?php echo $active_tab === 'updates' ? 'nav-tab-active' : ''; ?>">
                 <?php _e('Updates', 'multi-post-adder'); ?>
@@ -334,6 +407,7 @@ function mpa_settings_page() {
         </nav>
 
         <?php if ($active_tab === 'updates' && current_user_can('update_plugins')) mpa_updates_tab(); ?>
+        <?php if ($active_tab === 'ai') MPA_AI::render_tab(); ?>
 
         <?php if ($active_tab === 'presets') : ?>
             <div class="mpa-settings-panel">
@@ -568,12 +642,17 @@ function mpa_updates_tab() {
     <?php
 }
 
-function mpa_admin_page() {
+function mpa_ai_page() {
+    mpa_admin_page(true);
+}
+
+function mpa_admin_page($ai_mode = false) {
+    $ai_mode = ($ai_mode === true);
     $presets = mpa_get_presets();
     $automation = mpa_get_automation_settings();
     ?>
-    <div class="wrap">
-        <h1 class="wp-heading-inline"><?php _e('Add Multiple Posts', 'multi-post-adder'); ?></h1>
+    <div class="wrap<?php echo $ai_mode ? ' mpa-ai-wrap mpa-ai-pending' : ''; ?>">
+        <h1 class="wp-heading-inline"><?php echo $ai_mode ? esc_html__('Add Posts with AI', 'multi-post-adder') : esc_html__('Add Multiple Posts', 'multi-post-adder'); ?></h1>
         <button type="button" class="page-title-action mpa-import-setup">
             <span class="dashicons dashicons-upload" aria-hidden="true"></span><?php _e('Import setup', 'multi-post-adder'); ?>
         </button>
@@ -584,7 +663,9 @@ function mpa_admin_page() {
         <hr class="wp-header-end">
         <div id="mpa-setup-notice" class="notice is-dismissible" hidden><p></p></div>
 
-        <form id="mpa-form" method="post">
+        <?php if ($ai_mode) MPA_AI::render_wizard(); ?>
+
+        <form id="mpa-form" method="post"<?php echo $ai_mode ? ' class="mpa-ai-mode"' : ''; ?>>
             <section class="mpa-global-adjustments">
                 <h2><?php _e('Global Adjustments', 'multi-post-adder'); ?></h2>
 
@@ -904,6 +985,13 @@ add_action('admin_init', function () {
 
         $post_id = wp_insert_post($postarr);
         if ($post_id && $image_id) set_post_thumbnail($post_id, $image_id);
+
+        // Image ALT text (from "Add Posts with AI"), also used as the image's title.
+        $image_alt = isset($post_data['image_alt']) ? trim(sanitize_text_field(wp_unslash($post_data['image_alt']))) : '';
+        if ($image_id && $image_alt !== '' && current_user_can('edit_post', $image_id)) {
+            update_post_meta($image_id, '_wp_attachment_image_alt', $image_alt);
+            wp_update_post(['ID' => $image_id, 'post_title' => $image_alt]);
+        }
 
         if (!empty($global_meta_data)) {
             foreach ($global_meta_data as $meta) {

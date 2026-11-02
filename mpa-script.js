@@ -17,6 +17,7 @@ jQuery(document).ready(function ($) {
         downloadLink: 'Download link',
         fileName: 'File name',
         customText: 'Custom text',
+        imageAlt: 'Image ALT text (also saved as the image title):',
         setupImported: 'Setup imported.',
         setupInvalid: 'This file is not a valid Multi Post Adder setup.',
         categoryMissing: 'Category not found, skipped: %s',
@@ -85,7 +86,7 @@ jQuery(document).ready(function ($) {
             </div>
             <p class="mpa-field-row mpa-title-row">
                 <label>${labels.title}</label>
-                <input Style="width:stretch;" type="text" name="mpa-posts[${i}][title]">
+                <input Style="width:stretch;" type="text" name="mpa-posts[${i}][title]" dir="auto">
             </p>
             <p class="mpa-field-row">
                 <label>${labels.content}</label><br>
@@ -97,6 +98,10 @@ jQuery(document).ready(function ($) {
                     <input type="hidden" name="mpa-posts[${i}][image]" id="mpa-image-${i}">
                     <span class="mpa-image-preview" id="mpa-preview-${i}"></span>
                 </label>
+                <span class="mpa-image-alt">
+                    <label for="mpa-image-alt-${i}">${labels.imageAlt}</label>
+                    <input type="text" name="mpa-posts[${i}][image_alt]" id="mpa-image-alt-${i}" dir="auto">
+                </span>
             </p>
             <p class="mpa-field-row">
                 <label>${labels.customFields}
@@ -162,6 +167,7 @@ jQuery(document).ready(function ($) {
                 initEditor(`editor-${i}`);
             }
             applySelectedPreset();
+            $(document).trigger('mpa:posts-ready', [count]);
         }, 200); // Delay to allow DOM to render
     }).trigger('change');
 
@@ -1053,4 +1059,14 @@ jQuery(document).ready(function ($) {
         };
         reader.readAsText(file);
     });
+
+    // Helpers used by "Add Posts with AI" (mpa-ai.js).
+    window.MPA = {
+        importSetup,
+        getEditorContent,
+        setEditorContent,
+        escapeHtml,
+        placeholderRegExp,
+        labels
+    };
 });

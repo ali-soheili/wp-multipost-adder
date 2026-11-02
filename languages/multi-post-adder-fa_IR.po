@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.13\n"
+"Project-Id-Version: Multi Post Adder 1.14\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -508,4 +508,341 @@ msgstr "در سایت‌های بدون دسترسی به اینترنت (مثل
 
 msgid "Update checks are turned off."
 msgstr "بررسی به‌روزرسانی خاموش است."
+
+#, php-format
+msgid "%1$d of %2$d"
+msgstr "%1$d از %2$d"
+
+#, php-format, python-format
+msgid "%d images failed. Retry them, or continue and fill those posts yourself."
+msgstr "%d تصویر ناموفق بود. دوباره تلاش کنید، یا ادامه دهید و آن نوشته‌ها را خودتان پر کنید."
+
+#, php-format, python-format
+msgid "%d images selected · one post per image"
+msgstr "%d تصویر انتخاب شد · یک نوشته برای هر تصویر"
+
+#, php-format, python-format
+msgid "%s API key"
+msgstr "کلید API ‏%s"
+
+#, php-format, python-format
+msgid "%s could not be reached. AI writing needs internet access."
+msgstr "دسترسی به %s ممکن نشد. نوشتن با هوش مصنوعی به اینترنت نیاز دارد."
+
+#, php-format, python-format
+msgid "%s model"
+msgstr "مدل %s"
+
+msgid "1 image failed. Retry it, or continue and fill that post yourself."
+msgstr "۱ تصویر ناموفق بود. دوباره تلاش کنید، یا ادامه دهید و آن نوشته را خودتان پر کنید."
+
+msgid "1 image selected · one post"
+msgstr "۱ تصویر انتخاب شد · یک نوشته"
+
+msgid "AI"
+msgstr "هوش مصنوعی"
+
+msgid "AI settings saved."
+msgstr "تنظیمات هوش مصنوعی ذخیره شد."
+
+msgid "API keys and models"
+msgstr "کلیدهای API و مدل‌ها"
+
+msgid "About 50–60 characters shows in full in search results."
+msgstr "حدود ۵۰ تا ۶۰ نویسه به‌طور کامل در نتایج جستجو نمایش داده می‌شود."
+
+msgid "Add Posts with AI"
+msgstr "افزودن نوشته با هوش مصنوعی"
+
+msgid "Add an API key in the AI settings first."
+msgstr "ابتدا یک کلید API در تنظیمات هوش مصنوعی اضافه کنید."
+
+msgid "Add it in the AI settings"
+msgstr "آن را در تنظیمات هوش مصنوعی اضافه کنید"
+
+msgid "All done. Check the results, then continue."
+msgstr "همه انجام شد. نتایج را بررسی کنید و سپس ادامه دهید."
+
+msgid "Arabic"
+msgstr "عربی"
+
+msgid "Chinese"
+msgstr "چینی"
+
+msgid "Dutch"
+msgstr "هلندی"
+
+msgid "English"
+msgstr "انگلیسی"
+
+msgid "French"
+msgstr "فرانسوی"
+
+msgid "German"
+msgstr "آلمانی"
+
+msgid "Hindi"
+msgstr "هندی"
+
+msgid "Italian"
+msgstr "ایتالیایی"
+
+msgid "Japanese"
+msgstr "ژاپنی"
+
+msgid "Persian"
+msgstr "فارسی"
+
+msgid "Portuguese"
+msgstr "پرتغالی"
+
+msgid "Russian"
+msgstr "روسی"
+
+msgid "Spanish"
+msgstr "اسپانیایی"
+
+msgid "Turkish"
+msgstr "ترکی"
+
+msgid "Urdu"
+msgstr "اردو"
+
+msgid "Ask an administrator to add one."
+msgstr "از یک مدیر بخواهید آن را اضافه کند."
+
+msgid "Back"
+msgstr "بازگشت"
+
+msgid "Categories"
+msgstr "دسته‌بندی‌ها"
+
+msgid "Change"
+msgstr "تغییر"
+
+msgid "Check failed."
+msgstr "بررسی ناموفق بود."
+
+msgid "Check key & load models"
+msgstr "بررسی کلید و دریافت مدل‌ها"
+
+msgid "Checking…"
+msgstr "در حال بررسی…"
+
+msgid "Choose the images"
+msgstr "تصاویر را انتخاب کنید"
+
+msgid "Content preset"
+msgstr "قالب آماده محتوا"
+
+msgid "Continue anyway"
+msgstr "در هر حال ادامه بده"
+
+msgid "Continue to posts"
+msgstr "ادامه به نوشته‌ها"
+
+msgid "Create a key in Google AI Studio."
+msgstr "یک کلید در Google AI Studio بسازید."
+
+msgid "Create a key in the Claude Console."
+msgstr "یک کلید در Claude Console بسازید."
+
+msgid "Custom fields"
+msgstr "فیلدهای سفارشی"
+
+msgid "Default prompt"
+msgstr "پرامپت پیش‌فرض"
+
+msgid "Description length"
+msgstr "طول توضیحات"
+
+msgid "Drop the .json file here, or click to choose it"
+msgstr "فایل ‎.json را اینجا رها کنید یا برای انتخاب کلیک کنید"
+
+msgid "Enter an API key first."
+msgstr "ابتدا یک کلید API وارد کنید."
+
+msgid "Failed"
+msgstr "ناموفق"
+
+msgid "Generate"
+msgstr "تولید"
+
+msgid "Hashtags"
+msgstr "هشتگ‌ها"
+
+msgid "Image ALT text (also saved as the image title):"
+msgstr "متن جایگزین (ALT) تصویر (به‌عنوان عنوان تصویر هم ذخیره می‌شود):"
+
+msgid "Image ALT text is always kept under 125 characters."
+msgstr "متن ALT تصویر همیشه کمتر از ۱۲۵ نویسه نگه داشته می‌شود."
+
+msgid "Images"
+msgstr "تصاویر"
+
+msgid "Key saved"
+msgstr "کلید ذخیره شده"
+
+#, php-format, python-format
+msgid "Key works · %d models found"
+msgstr "کلید کار می‌کند · %d مدل پیدا شد"
+
+msgid "Language"
+msgstr "زبان"
+
+msgid "Language of the post title, the image ALT text and the description."
+msgstr "زبان عنوان نوشته، متن ALT تصویر و توضیحات."
+
+msgid "Load a setup file"
+msgstr "یک فایل تنظیمات بارگذاری کنید"
+
+msgid "Load a setup file to continue."
+msgstr "برای ادامه یک فایل تنظیمات بارگذاری کنید."
+
+msgid "Model not found. Pick another model in Settings → MPA Settings → AI."
+msgstr "مدل پیدا نشد. در تنظیمات ← تنظیمات MPA ← هوش مصنوعی مدل دیگری انتخاب کنید."
+
+msgid "Next"
+msgstr "بعدی"
+
+#, php-format, python-format
+msgid "No %s API key saved yet."
+msgstr "هنوز کلید API ‏%s ذخیره نشده است."
+
+msgid "No API key saved. Add one in Settings → MPA Settings → AI."
+msgstr "کلید API ذخیره نشده است. در تنظیمات ← تنظیمات MPA ← هوش مصنوعی یکی اضافه کنید."
+
+msgid "No key yet"
+msgstr "هنوز کلیدی نیست"
+
+msgid "One post is created for each image, in this order. Drag to reorder."
+msgstr "برای هر تصویر یک نوشته به همین ترتیب ساخته می‌شود. برای تغییر ترتیب بکشید."
+
+msgid "Post title length"
+msgstr "طول عنوان نوشته"
+
+msgid "Pre-filled in the prompt step; you can change it each time."
+msgstr "در مرحله پرامپت از پیش پر می‌شود؛ هر بار می‌توانید تغییرش دهید."
+
+msgid "Prompt"
+msgstr "پرامپت"
+
+msgid "Provider"
+msgstr "ارائه‌دهنده"
+
+msgid "Remove saved key"
+msgstr "حذف کلید ذخیره‌شده"
+
+msgid "Retry"
+msgstr "تلاش دوباره"
+
+msgid "Retry failed"
+msgstr "تلاش دوباره برای ناموفق‌ها"
+
+#, php-format, python-format
+msgid "Saved (%s) — leave empty to keep"
+msgstr "ذخیره شده (%s) — برای حفظ، خالی بگذارید"
+
+msgid "Select at least one image."
+msgstr "دست‌کم یک تصویر انتخاب کنید."
+
+msgid "Select or upload images"
+msgstr "انتخاب یا بارگذاری تصاویر"
+
+msgid "Setup file"
+msgstr "فایل تنظیمات"
+
+msgid "Steps"
+msgstr "مراحل"
+
+msgid "Stop"
+msgstr "توقف"
+
+msgid "Stopped"
+msgstr "متوقف شد"
+
+msgid "Tell the AI about these images"
+msgstr "درباره این تصاویر به هوش مصنوعی توضیح دهید"
+
+msgid "The AI refused to describe this image."
+msgstr "هوش مصنوعی از توصیف این تصویر خودداری کرد."
+
+msgid "The AI reply could not be read. Retry this image."
+msgstr "پاسخ هوش مصنوعی قابل خواندن نبود. برای این تصویر دوباره تلاش کنید."
+
+msgid "The AI reply was empty. Retry this image."
+msgstr "پاسخ هوش مصنوعی خالی بود. برای این تصویر دوباره تلاش کنید."
+
+msgid "The AI service is busy or having problems. Retry in a moment."
+msgstr "سرویس هوش مصنوعی شلوغ است یا مشکل دارد. کمی بعد دوباره تلاش کنید."
+
+#, php-format, python-format
+msgid "The AI service returned HTTP %d."
+msgstr "سرویس هوش مصنوعی کد HTTP %d برگرداند."
+
+msgid "The API key was rejected. Check it in Settings → MPA Settings → AI."
+msgstr "کلید API پذیرفته نشد. آن را در تنظیمات ← تنظیمات MPA ← هوش مصنوعی بررسی کنید."
+
+msgid "The JSON file made with “Export setup” on Add Multiple Posts. It sets categories, hashtags, content preset, custom fields and automation."
+msgstr "فایل JSON ساخته‌شده با «خروجی گرفتن از تنظیمات» در صفحه افزودن چندین نوشته. دسته‌بندی‌ها، هشتگ‌ها، قالب آماده، فیلدهای سفارشی و اتوماسیون را تنظیم می‌کند."
+
+msgid "The image could not be prepared for the AI (unsupported format or too large)."
+msgstr "تصویر برای هوش مصنوعی آماده نشد (قالب پشتیبانی نمی‌شود یا حجم زیاد است)."
+
+msgid "The image file could not be found on the server."
+msgstr "فایل تصویر روی سرور پیدا نشد."
+
+msgid "The model must accept images. “Check key & load models” lists the models available to your key."
+msgstr "مدل باید تصویر بپذیرد. «بررسی کلید و دریافت مدل‌ها» مدل‌های در دسترس کلید شما را فهرست می‌کند."
+
+msgid "The number of posts in the file is ignored; the images decide."
+msgstr "تعداد نوشته‌ها در فایل نادیده گرفته می‌شود؛ تعداد تصاویر تعیین‌کننده است."
+
+msgid "This file is not an image."
+msgstr "این فایل تصویر نیست."
+
+msgid "Too many requests or quota used up. Wait a moment and retry."
+msgstr "درخواست‌ها زیاد است یا سهمیه تمام شده. کمی صبر کنید و دوباره تلاش کنید."
+
+msgid "Use these images"
+msgstr "استفاده از این تصاویر"
+
+msgid "Used by Posts → Add Posts with AI to write a post title, image ALT text and a short description for each image."
+msgstr "در نوشته‌ها ← افزودن نوشته با هوش مصنوعی برای نوشتن عنوان نوشته، متن ALT تصویر و توضیح کوتاه برای هر تصویر استفاده می‌شود."
+
+msgid "Waiting"
+msgstr "در انتظار"
+
+msgid "What are they, what should it focus on, any names or terms to use? The better the notes, the better the titles."
+msgstr "این تصاویر چه هستند، روی چه چیزی تمرکز شود، چه نام‌ها یا اصطلاحاتی به کار رود؟ هرچه توضیح بهتر، عنوان‌ها بهتر."
+
+msgid "Writing"
+msgstr "نگارش"
+
+msgid "Writing titles and descriptions…"
+msgstr "در حال نوشتن عنوان‌ها و توضیحات…"
+
+#, php-format
+msgid "Writing with %1$s (%2$s) in %3$s."
+msgstr "نوشتن با %1$s (%2$s) به زبان %3$s."
+
+msgid "characters at most"
+msgstr "نویسه حداکثر"
+
+msgid "e.g. These are screenshots of Windows software. Mention the app name if it is visible."
+msgstr "مثلاً: این‌ها اسکرین‌شات نرم‌افزارهای ویندوز هستند. اگر نام برنامه دیده می‌شود، آن را ذکر کن."
+
+msgid "off"
+msgstr "خاموش"
+
+msgid "on"
+msgstr "روشن"
+
+msgid "—"
+msgstr "—"
+
+#, php-format, python-format
+msgid "%d sentence"
+msgid_plural "%d sentences"
+msgstr[0] "%d جمله"
 

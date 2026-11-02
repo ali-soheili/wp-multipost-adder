@@ -1139,6 +1139,593 @@
 }
 
 /* ==========================================================================
+   Add Posts with AI
+   ========================================================================== */
+.mpa-ai-pending #mpa-form,
+.wrap.mpa-ai-pending .page-title-action {
+    display: none !important;
+}
+
+/* Image ALT field: only on the AI page */
+.mpa-image-alt {
+    display: none;
+}
+
+#mpa-form.mpa-ai-mode .mpa-image-alt {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 640px;
+    margin-top: 10px;
+}
+
+.mpa-image-alt label {
+    color: #50575e;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mpa-image-alt input {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.mpa-wizard {
+    max-width: 960px;
+    margin: 16px 0 24px;
+}
+
+.mpa-wizard[hidden] {
+    display: none;
+}
+
+/* Step indicator */
+.mpa-steps {
+    display: flex;
+    gap: 0;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+    counter-reset: none;
+}
+
+.mpa-step {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    gap: 8px;
+    margin: 0;
+    color: #646970;
+    font-size: 13px;
+}
+
+.mpa-step:not(:last-child)::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    margin: 0 10px;
+    background: #dcdcde;
+}
+
+.mpa-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    width: 24px;
+    height: 24px;
+    border: 1px solid #c3c4c7;
+    border-radius: 50%;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 600;
+}
+
+.mpa-step.is-current {
+    color: #1d2327;
+    font-weight: 600;
+}
+
+.mpa-step.is-current .mpa-step-num {
+    border-color: #2271b1;
+    background: #2271b1;
+    color: #fff;
+}
+
+.mpa-step.is-done .mpa-step-num {
+    border-color: #2271b1;
+    color: #2271b1;
+}
+
+.mpa-step.is-done:not(:last-child)::after {
+    background: #2271b1;
+}
+
+.mpa-wizard-card {
+    border: 1px solid #ccd0d4;
+    background: #fff;
+}
+
+.mpa-wizard-step {
+    padding: 18px 20px 20px;
+}
+
+.mpa-wizard-step[hidden] {
+    display: none;
+}
+
+.mpa-wizard-step h2 {
+    margin: 0 0 4px;
+    font-size: 16px;
+}
+
+.mpa-wizard-step > .description {
+    margin: 0 0 14px;
+}
+
+.mpa-wizard-footer {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 20px;
+    border-top: 1px solid #f0f0f1;
+    background: #f6f7f7;
+}
+
+.mpa-wizard-footer .mpa-wz-hint {
+    flex: 1;
+    color: #646970;
+    font-size: 13px;
+}
+
+.mpa-wizard-footer .mpa-wz-hint.is-error {
+    color: #b32d2e;
+}
+
+.mpa-wizard-footer .mpa-wz-back[hidden],
+.mpa-wizard-footer .mpa-wz-retry[hidden] {
+    display: none;
+}
+
+.mpa-wizard-footer .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mpa-wizard-footer .button .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    line-height: 16px;
+}
+
+.mpa-wizard .mpa-wz-stop {
+    color: #b32d2e;
+    border-color: #b32d2e;
+}
+
+/* Step 1: image grid */
+.mpa-wz-images {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+    margin: 0 0 14px;
+    padding: 0;
+    list-style: none;
+}
+
+.mpa-wz-images:empty {
+    display: none;
+}
+
+.mpa-wz-image {
+    position: relative;
+    margin: 0;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #f6f7f7;
+    overflow: hidden;
+    cursor: grab;
+}
+
+.mpa-wz-image img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+}
+
+.mpa-wz-image-placeholder {
+    border: 2px dashed #2271b1;
+    background: #f0f6fc;
+    visibility: visible !important;
+    min-height: 110px;
+}
+
+.mpa-wz-image-num {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 5px;
+    border-radius: 10px;
+    background: rgba(29, 35, 39, .75);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 20px;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.mpa-wz-image-remove {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, .9);
+    color: #50575e;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity .12s ease;
+}
+
+.mpa-wz-image:hover .mpa-wz-image-remove,
+.mpa-wz-image-remove:focus {
+    opacity: 1;
+}
+
+.mpa-wz-image-remove:hover {
+    background: #d63638;
+    color: #fff;
+}
+
+.mpa-wz-image-remove .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.mpa-wz-image-name {
+    display: block;
+    padding: 4px 6px;
+    background: #fff;
+    border-top: 1px solid #f0f0f1;
+    font-size: 11px;
+    color: #50575e;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    direction: ltr;
+}
+
+.mpa-wz-images-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.mpa-wz-images-actions .button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.mpa-wz-images-actions .button .dashicons {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    font-size: 18px;
+    line-height: 18px;
+    vertical-align: 0;
+}
+
+.mpa-wz-count {
+    color: #50575e;
+    font-size: 13px;
+}
+
+/* Step 2: setup file */
+.mpa-wz-drop {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    padding: 28px 16px;
+    border: 1.5px dashed #c3c4c7;
+    border-radius: 8px;
+    background: #f6f7f7;
+    color: #50575e;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color .15s ease, background-color .15s ease;
+}
+
+.mpa-wz-drop[hidden] {
+    display: none;
+}
+
+.mpa-wz-drop:hover,
+.mpa-wz-drop:focus,
+.mpa-wz-drop.is-over {
+    border-color: #2271b1;
+    background: #f0f6fc;
+    outline: none;
+}
+
+.mpa-wz-drop .dashicons {
+    width: 32px;
+    height: 32px;
+    font-size: 32px;
+    color: #8c8f94;
+}
+
+.mpa-wz-file-error {
+    color: #b32d2e;
+}
+
+.mpa-wz-summary {
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+}
+
+.mpa-wz-summary[hidden] {
+    display: none;
+}
+
+.mpa-wz-summary-head {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid #f0f0f1;
+    background: #f6f7f7;
+}
+
+.mpa-wz-summary-head .dashicons {
+    color: #00a32a;
+}
+
+.mpa-wz-summary-name {
+    flex: 1;
+    direction: ltr;
+    text-align: start;
+}
+
+.mpa-wz-summary-list {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: 8px 16px;
+    margin: 0;
+    padding: 12px 14px;
+}
+
+.mpa-wz-summary-list dt {
+    color: #646970;
+    font-size: 13px;
+}
+
+.mpa-wz-summary-list dd {
+    margin: 0;
+    font-size: 13px;
+}
+
+.mpa-wz-chip {
+    display: inline-block;
+    margin: 0 4px 4px 0;
+    padding: 1px 8px;
+    border: 1px solid #c5d9ed;
+    border-radius: 10px;
+    background: #f0f6fc;
+    font-size: 12px;
+}
+
+.mpa-wz-note {
+    grid-column: 1 / -1;
+    margin: 4px 0 0;
+    color: #646970;
+    font-size: 12px;
+    font-style: italic;
+}
+
+/* Step 3: prompt */
+#mpa-wz-prompt {
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.mpa-wz-provider {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin: 10px 0 0;
+    color: #50575e;
+    font-size: 13px;
+}
+
+.mpa-wz-provider .dashicons {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #8c8f94;
+}
+
+/* Step 4: progress and results */
+.mpa-wz-progress {
+    height: 6px;
+    margin: 10px 0 6px;
+    border-radius: 3px;
+    background: #f0f0f1;
+    overflow: hidden;
+}
+
+.mpa-wz-progress-bar {
+    display: block;
+    width: 0;
+    height: 100%;
+    background: #2271b1;
+    transition: width .3s ease;
+}
+
+.mpa-wz-progress-text {
+    margin: 0 0 12px;
+    color: #646970;
+    font-size: 12px;
+}
+
+.mpa-wz-results {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.mpa-wz-result {
+    display: flex;
+    gap: 12px;
+    margin: 0;
+    padding: 10px 0;
+    border-top: 1px solid #f0f0f1;
+}
+
+.mpa-wz-r-thumb {
+    position: relative;
+    flex: none;
+    width: 72px;
+}
+
+.mpa-wz-r-thumb img {
+    display: block;
+    width: 72px;
+    height: 54px;
+    border-radius: 4px;
+    object-fit: cover;
+}
+
+.mpa-wz-r-thumb .mpa-wz-image-num {
+    top: 3px;
+    left: 3px;
+}
+
+.mpa-wz-r-body {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    min-width: 0;
+    font-size: 13px;
+}
+
+.mpa-wz-r-title {
+    color: #1d2327;
+}
+
+.mpa-wz-r-alt {
+    color: #50575e;
+    font-size: 12px;
+}
+
+.mpa-wz-r-alt .dashicons {
+    width: 14px;
+    height: 14px;
+    margin-right: 4px;
+    font-size: 14px;
+    vertical-align: -2px;
+    color: #8c8f94;
+}
+
+.mpa-wz-r-desc {
+    color: #646970;
+    font-size: 12px;
+}
+
+.mpa-wz-r-error {
+    color: #b32d2e;
+}
+
+.mpa-wz-r-muted {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    color: #8c8f94;
+}
+
+.mpa-wz-r-muted .spinner {
+    float: none;
+    margin: 0;
+}
+
+.mpa-wz-result.is-error .mpa-wz-r-thumb img {
+    opacity: .6;
+}
+
+/* AI settings tab */
+.mpa-provider-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin: 10px 0 24px;
+}
+
+.mpa-provider-card {
+    position: relative;
+}
+
+.mpa-provider-card input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    pointer-events: none;
+}
+
+.mpa-provider-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 170px;
+    padding: 12px 16px;
+    border: 1px solid #dcdcde;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    transition: border-color .15s ease, box-shadow .15s ease;
+}
+
+.mpa-provider-card input:checked + .mpa-provider-card-body {
+    border-color: #2271b1;
+    box-shadow: 0 0 0 1px #2271b1;
+}
+
+.mpa-provider-card input:focus-visible + .mpa-provider-card-body {
+    outline: 2px solid #2271b1;
+    outline-offset: 2px;
+}
+
+.mpa-provider-card-status {
+    color: #8c8f94;
+    font-size: 12px;
+}
+
+.mpa-provider-card-status.is-ok {
+    color: #008a20;
+}
+
+.mpa-ai-check-status {
+    margin-left: 6px;
+    font-size: 13px;
+}
+
+.mpa-ai-check-status.is-ok { color: #008a20; }
+.mpa-ai-check-status.is-error { color: #b32d2e; }
+
+/* ==========================================================================
    Right-to-left admin (e.g. Persian)
    ========================================================================== */
 .rtl .mpa-cat-control { padding: 0 5px 0 30px; }
@@ -1155,6 +1742,12 @@
 .rtl .mpa-post-when { margin-right: 0; margin-left: auto; }
 .rtl .mpa-post-when::before { margin-right: 0; margin-left: 4px; }
 .rtl .mpa-post-head .mpa-post-automation { margin-left: 0; margin-right: auto; }
+.rtl .mpa-wz-image-num { left: auto; right: 6px; }
+.rtl .mpa-wz-image-remove { right: auto; left: 5px; }
+.rtl .mpa-wz-r-thumb .mpa-wz-image-num { left: auto; right: 3px; }
+.rtl .mpa-wz-r-alt .dashicons { margin-right: 0; margin-left: 4px; }
+.rtl .mpa-ai-check-status { margin-left: 0; margin-right: 6px; }
+.rtl .mpa-wz-chip { margin: 0 0 4px 4px; }
 
 @media (max-width: 782px) {
     .mpa-post-head {

@@ -22,6 +22,7 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 - Translation-ready plugin structure
 - Automation box: fill placeholders in each post with one click (title translation, download link, image file name)
 - One-click updates from GitHub right inside the WordPress dashboard
+- Add Posts with AI: pick images, load a setup file, add notes, and let Claude or Gemini write each post's title, image ALT text and description
 
 ## Technologies Used
 
@@ -65,6 +66,29 @@ Each post's buttons work independently. **Run all** runs every automation on one
 Example pattern: `https://dl.example.com/files/{file_name}.zip`
 
 Developers can change the translation languages with the `mpa_translate_source_lang` and `mpa_translate_target_lang` filters.
+
+## Add Posts with AI
+
+**Posts → Add Posts with AI** creates one post per image, with help from Claude or Gemini:
+
+1. **Images** – select or upload images (drag to reorder). The number of images is the number of posts.
+2. **Setup file** – load a JSON setup file (required). It sets everything except the number of posts.
+3. **Prompt** – notes that help the AI understand the images.
+4. **Generate** – for each image the AI writes:
+   - a descriptive, SEO-friendly **post title**,
+   - short **image ALT text** (≤ 125 characters), also saved as the **image title**,
+   - a short **description**, placed where `{custom_text}` is in the post content (or at the top if there is no `{custom_text}`).
+
+Failed images can be retried. Then the normal Add Multiple Posts page opens, filled in, so everything can still be checked and edited before publishing. The image ALT text and title are saved when you publish, schedule or save as draft.
+
+### AI settings (Settings → MPA Settings → AI)
+
+- **Provider:** Claude or Gemini.
+- **API keys:** from the [Claude Console](https://console.anthropic.com/settings/keys) or [Google AI Studio](https://aistudio.google.com/apikey). A Claude.ai or Gemini app subscription is not the same as API access. Keys are stored on the server and never sent to the browser.
+- **Models:** “Check key & load models” lists the models your key can use. The model must accept images.
+- **Language, title length, description length, default prompt.**
+
+Images are scaled down to at most 1568 px before sending. AI writing needs internet access.
 
 ## Setup files (import / export)
 
@@ -110,9 +134,10 @@ Requires WordPress 5.8 or newer (uses the `Update URI` plugin header). The plugi
 
 ## Offline / intranet use
 
-The plugin loads only its own files and WordPress's built-in scripts, styles and icons; nothing comes from a CDN. On a site without internet access everything works except two optional online features:
+The plugin loads only its own files and WordPress's built-in scripts, styles and icons; nothing comes from a CDN. On a site without internet access everything works except three optional online features:
 
 - **Translate title** needs Google Translate. Offline it stops after about 6 seconds with a clear message.
+- **Add Posts with AI** needs Claude or Gemini.
 - **Updates from GitHub** can be turned off under **Settings → MPA Settings → Updates → Update checks**. If left on, a failed check is retried at most every 6 hours.
 
 Scheduled posts are published by WP-Cron, which runs on your own server and needs no internet.
@@ -124,7 +149,9 @@ wp-multipost-adder/
 ├── multi-post-adder.php   # Main WordPress plugin file
 ├── mpa-script.js          # Admin-side JavaScript for dynamic post fields
 ├── mpa-style.css          # Admin page styling
+├── mpa-ai.js              # Add Posts with AI wizard + AI settings tab
 ├── includes/
+│   ├── class-mpa-ai.php              # AI settings, Claude/Gemini requests
 │   └── class-mpa-github-updater.php  # Updates from GitHub
 ├── languages/             # Translations (fa_IR)
 ├── LICENSE                # Proprietary License
