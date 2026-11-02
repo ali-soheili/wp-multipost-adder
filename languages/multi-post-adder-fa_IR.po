@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.14\n"
+"Project-Id-Version: Multi Post Adder 1.16\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -845,4 +845,59 @@ msgstr "—"
 msgid "%d sentence"
 msgid_plural "%d sentences"
 msgstr[0] "%d جمله"
+
+#, php-format, python-format
+msgid "%s backup model"
+msgstr "مدل پشتیبان %s"
+
+msgid "Optional"
+msgstr "اختیاری"
+
+msgid "Optional. Used automatically when the main model is overloaded (“high demand”). A lighter model, e.g. a Flash-Lite or Haiku model, is a good choice."
+msgstr "اختیاری. وقتی مدل اصلی شلوغ است («high demand») خودکار استفاده می‌شود. یک مدل سبک‌تر، مثلاً Flash-Lite یا Haiku، انتخاب خوبی است."
+
+#, php-format
+msgid "%1$s did not answer within %2$d seconds (it may be overloaded)."
+msgstr "%1$s در %2$d ثانیه پاسخ نداد (ممکن است شلوغ باشد)."
+
+#, php-format
+msgid "%1$s could not be reached from this server: %2$s"
+msgstr "از این سرور به %1$s دسترسی نشد: %2$s"
+
+#, php-format, python-format
+msgid "Written by the backup model (%s)"
+msgstr "نوشته‌شده با مدل پشتیبان (%s)"
+
+#, php-format, python-format
+msgid "Your web server stopped the request (HTTP %d). The AI may have taken too long; retry this image."
+msgstr "سرور وب شما درخواست را متوقف کرد (HTTP %d). شاید پاسخ هوش مصنوعی بیش از حد طول کشیده باشد؛ برای این تصویر دوباره تلاش کنید."
+
+msgid "Create a key on the DeepSeek Platform and add balance there. Use a model that accepts images, e.g. deepseek-flash."
+msgstr "یک کلید در پلتفرم DeepSeek بسازید و همان‌جا موجودی شارژ کنید. از مدلی استفاده کنید که تصویر می‌پذیرد، مثلاً deepseek-flash."
+
+msgid "Create a key in Alibaba Cloud Model Studio. Use a model that accepts images (a Qwen-VL / Qwen3-VL model)."
+msgstr "یک کلید در Alibaba Cloud Model Studio بسازید. از مدلی استفاده کنید که تصویر می‌پذیرد (یک مدل Qwen-VL / Qwen3-VL)."
+
+msgid "Qwen base URL"
+msgstr "آدرس پایه Qwen"
+
+msgid "The OpenAI-compatible address for your workspace and region, from Model Studio. It ends in /compatible-mode/v1. The key only works in the region where it was created."
+msgstr "آدرس سازگار با OpenAI برای فضای کاری و منطقه شما، از Model Studio. با ‎/compatible-mode/v1 تمام می‌شود. کلید فقط در منطقه‌ای که ساخته شده کار می‌کند."
+
+#, php-format, python-format
+msgid "%s does not accept requests from the country where this website is hosted."
+msgstr "%s درخواست‌ها را از کشوری که این وب‌سایت در آن میزبانی می‌شود نمی‌پذیرد."
+
+#, php-format, python-format
+msgid "Your %s account is out of credit. Add balance in its console, then retry."
+msgstr "اعتبار حساب %s شما تمام شده است. در کنسول آن موجودی اضافه کنید و دوباره تلاش کنید."
+
+msgid "Enter the Qwen base URL first."
+msgstr "ابتدا آدرس پایه Qwen را وارد کنید."
+
+msgid "Enter the Qwen base URL in Settings → MPA Settings → AI."
+msgstr "آدرس پایه Qwen را در تنظیمات ← تنظیمات MPA ← هوش مصنوعی وارد کنید."
+
+msgid "Key works · type the model name (this service does not list models)"
+msgstr "کلید کار می‌کند · نام مدل را تایپ کنید (این سرویس فهرست مدل‌ها را ارائه نمی‌دهد)"
 

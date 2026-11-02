@@ -59,25 +59,80 @@ class MPA_AI {
         return $names[$code] ?? 'Persian (Farsi)';
     }
 
+    /**
+     * Supported providers. DeepSeek and Qwen use the OpenAI-compatible
+     * "chat completions" format.
+     */
+    public static function providers() {
+        return [
+            'claude' => [
+                'label' => 'Claude',
+                'model' => self::DEFAULT_CLAUDE_MODEL,
+                'key_url' => 'https://platform.claude.com/settings/keys',
+                'help' => __('Create a key in the Claude Console.', 'multi-post-adder'),
+            ],
+            'gemini' => [
+                'label' => 'Gemini',
+                'model' => self::DEFAULT_GEMINI_MODEL,
+                'key_url' => 'https://aistudio.google.com/api-keys',
+                'help' => __('Create a key in Google AI Studio.', 'multi-post-adder'),
+            ],
+            'deepseek' => [
+                'label' => 'DeepSeek',
+                'model' => 'deepseek-flash',
+                'key_url' => 'https://platform.deepseek.com/',
+                'help' => __('Create a key on the DeepSeek Platform and add balance there. Use a model that accepts images, e.g. deepseek-flash.', 'multi-post-adder'),
+                'base_url' => 'https://api.deepseek.com',
+            ],
+            'qwen' => [
+                'label' => 'Qwen',
+                'model' => 'qwen3-vl-plus',
+                'key_url' => 'https://www.alibabacloud.com/help/en/model-studio/first-api-call-to-qwen',
+                'help' => __('Create a key in Alibaba Cloud Model Studio. Use a model that accepts images (a Qwen-VL / Qwen3-VL model).', 'multi-post-adder'),
+                'base_url' => '', // per workspace and region, see the Base URL setting
+            ],
+        ];
+    }
+
+    private static function provider_label($provider) {
+        $all = self::providers();
+        return $all[$provider]['label'] ?? ucfirst($provider);
+    }
+
+    private static function is_openai_compatible($provider) {
+        return in_array($provider, ['deepseek', 'qwen'], true);
+    }
+
+    /** Base URL for OpenAI-compatible providers, without a trailing slash. */
+    private static function base_url($provider, $settings) {
+        if ($provider === 'qwen') return untrailingslashit($settings['qwen_base_url']);
+        return self::providers()[$provider]['base_url'] ?? '';
+    }
+
     public static function get_settings() {
         $saved = get_option(self::OPTION, []);
-        $s = wp_parse_args(is_array($saved) ? $saved : [], [
+        $defaults = [
             'provider' => 'claude',
-            'claude_key' => '',
-            'gemini_key' => '',
-            'claude_model' => self::DEFAULT_CLAUDE_MODEL,
-            'gemini_model' => self::DEFAULT_GEMINI_MODEL,
             'language' => 'fa',
             'title_length' => 60,
             'description_sentences' => 2,
             'default_prompt' => '',
-        ]);
-        $s['provider'] = $s['provider'] === 'gemini' ? 'gemini' : 'claude';
+            'qwen_base_url' => '',
+        ];
+        foreach (self::providers() as $p => $info) {
+            $defaults["{$p}_key"] = '';
+            $defaults["{$p}_model"] = $info['model'];
+            $defaults["{$p}_backup_model"] = '';
+        }
+        $s = wp_parse_args(is_array($saved) ? $saved : [], $defaults);
+
+        if (!array_key_exists($s['provider'], self::providers())) $s['provider'] = 'claude';
         $s['title_length'] = max(30, min(120, (int) $s['title_length']));
         $s['description_sentences'] = max(1, min(4, (int) $s['description_sentences']));
         if (!array_key_exists($s['language'], self::languages())) $s['language'] = 'fa';
-        if ($s['claude_model'] === '') $s['claude_model'] = self::DEFAULT_CLAUDE_MODEL;
-        if ($s['gemini_model'] === '') $s['gemini_model'] = self::DEFAULT_GEMINI_MODEL;
+        foreach (self::providers() as $p => $info) {
+            if ($s["{$p}_model"] === '') $s["{$p}_model"] = $info['model'];
+        }
         return $s;
     }
 
@@ -85,9 +140,10 @@ class MPA_AI {
     public static function public_settings() {
         $s = self::get_settings();
         $key = $s[$s['provider'] . '_key'];
+        if (self::is_openai_compatible($s['provider']) && self::base_url($s['provider'], $s) === '') $key = '';
         return [
             'provider' => $s['provider'],
-            'providerLabel' => $s['provider'] === 'gemini' ? 'Gemini' : 'Claude',
+            'providerLabel' => self::provider_label($s['provider']),
             'model' => $s[$s['provider'] . '_model'],
             'hasKey' => $key !== '',
             'language' => self::languages()[$s['language']],
@@ -111,14 +167,17 @@ class MPA_AI {
         };
 
         $new = $current;
-        $new['provider'] = $text('mpa-ai-provider') === 'gemini' ? 'gemini' : 'claude';
+        $provider = $text('mpa-ai-provider');
+        $new['provider'] = array_key_exists($provider, self::providers()) ? $provider : 'claude';
 
-        foreach (['claude', 'gemini'] as $p) {
+        $new['qwen_base_url'] = self::clean_base_url($text('mpa-ai-qwen-base-url'));
+
+        foreach (array_keys(self::providers()) as $p) {
             if (!empty($_POST["mpa-ai-{$p}-key-remove"])) $new["{$p}_key"] = '';
             $typed = $text("mpa-ai-{$p}-key");
             if ($typed !== '') $new["{$p}_key"] = $typed;
-            $model = preg_replace('/[^A-Za-z0-9._\-\/:]/', '', $text("mpa-ai-{$p}-model"));
-            $new["{$p}_model"] = $model;
+            $new["{$p}_model"] = preg_replace('/[^A-Za-z0-9._\-\/:]/', '', $text("mpa-ai-{$p}-model"));
+            $new["{$p}_backup_model"] = preg_replace('/[^A-Za-z0-9._\-\/:]/', '', $text("mpa-ai-{$p}-backup-model"));
         }
 
         $new['language'] = $text('mpa-ai-language');
@@ -129,6 +188,15 @@ class MPA_AI {
         update_option(self::OPTION, $new, false);
         wp_redirect(admin_url('options-general.php?page=mpa-settings&tab=ai&mpa-message=ai-saved'));
         exit;
+    }
+
+    /** Accepts what people paste: with or without /chat/completions, trailing slash, etc. */
+    public static function clean_base_url($url) {
+        $url = trim((string) $url);
+        if ($url === '') return '';
+        $url = preg_replace('#/chat/completions/?$#', '', $url);
+        $url = esc_url_raw(untrailingslashit($url), ['https']);
+        return $url;
     }
 
     public static function render_tab() {
@@ -142,7 +210,7 @@ class MPA_AI {
                 <h2><?php _e('Provider', 'multi-post-adder'); ?></h2>
                 <p class="description"><?php _e('Used by Posts → Add Posts with AI to write a post title, image ALT text and a short description for each image.', 'multi-post-adder'); ?></p>
                 <div class="mpa-provider-cards">
-                    <?php foreach (['claude' => 'Claude', 'gemini' => 'Gemini'] as $value => $label) : ?>
+                    <?php foreach (self::providers() as $value => $info) : $label = $info['label']; ?>
                         <label class="mpa-provider-card">
                             <input type="radio" name="mpa-ai-provider" value="<?php echo esc_attr($value); ?>" <?php checked($s['provider'], $value); ?>>
                             <span class="mpa-provider-card-body">
@@ -158,14 +226,14 @@ class MPA_AI {
                 <h2><?php _e('API keys and models', 'multi-post-adder'); ?></h2>
                 <table class="form-table" role="presentation">
                     <?php
-                    $providers = [
-                        'claude' => ['Claude', 'https://console.anthropic.com/settings/keys', __('Create a key in the Claude Console.', 'multi-post-adder')],
-                        'gemini' => ['Gemini', 'https://aistudio.google.com/apikey', __('Create a key in Google AI Studio.', 'multi-post-adder')],
-                    ];
-                    foreach ($providers as $p => [$label, $url, $help]) :
+                    foreach (self::providers() as $p => $info) :
+                        $label = $info['label'];
+                        $url = $info['key_url'];
+                        $help = $info['help'];
                         $key = $s[$p . '_key'];
                         ?>
-                        <tr class="mpa-ai-provider-row" data-provider="<?php echo esc_attr($p); ?>">
+                        <tr class="mpa-ai-provider-head mpa-ai-p" data-for="<?php echo esc_attr($p); ?>"><th colspan="2"><h3><?php echo esc_html($label); ?></h3></th></tr>
+                        <tr class="mpa-ai-provider-row mpa-ai-p" data-for="<?php echo esc_attr($p); ?>" data-provider="<?php echo esc_attr($p); ?>">
                             <th scope="row"><label for="mpa-ai-<?php echo esc_attr($p); ?>-key"><?php echo esc_html(sprintf(__('%s API key', 'multi-post-adder'), $label)); ?></label></th>
                             <td>
                                 <input type="password" id="mpa-ai-<?php echo esc_attr($p); ?>-key" name="mpa-ai-<?php echo esc_attr($p); ?>-key" class="regular-text mpa-ai-key" value="" autocomplete="new-password" spellcheck="false"
@@ -178,12 +246,28 @@ class MPA_AI {
                                 <p class="description"><?php echo esc_html($help); ?> <a href="<?php echo esc_url($url); ?>" target="_blank" rel="noopener"><?php echo esc_html(wp_parse_url($url, PHP_URL_HOST)); ?></a></p>
                             </td>
                         </tr>
-                        <tr>
+                        <?php if ($p === 'qwen') : ?>
+                        <tr class="mpa-ai-p" data-for="<?php echo esc_attr($p); ?>">
+                            <th scope="row"><label for="mpa-ai-qwen-base-url"><?php _e('Qwen base URL', 'multi-post-adder'); ?></label></th>
+                            <td>
+                                <input type="url" id="mpa-ai-qwen-base-url" name="mpa-ai-qwen-base-url" class="large-text code" value="<?php echo esc_attr($s['qwen_base_url']); ?>" spellcheck="false" placeholder="https://WORKSPACE-ID.ap-southeast-1.maas.aliyuncs.com/compatible-mode/v1">
+                                <p class="description"><?php _e('The OpenAI-compatible address for your workspace and region, from Model Studio. It ends in /compatible-mode/v1. The key only works in the region where it was created.', 'multi-post-adder'); ?></p>
+                            </td>
+                        </tr>
+                        <?php endif; ?>
+                        <tr class="mpa-ai-p" data-for="<?php echo esc_attr($p); ?>">
                             <th scope="row"><label for="mpa-ai-<?php echo esc_attr($p); ?>-model"><?php echo esc_html(sprintf(__('%s model', 'multi-post-adder'), $label)); ?></label></th>
                             <td>
                                 <input type="text" id="mpa-ai-<?php echo esc_attr($p); ?>-model" name="mpa-ai-<?php echo esc_attr($p); ?>-model" class="regular-text code" list="mpa-ai-<?php echo esc_attr($p); ?>-models" value="<?php echo esc_attr($s[$p . '_model']); ?>" spellcheck="false">
                                 <datalist id="mpa-ai-<?php echo esc_attr($p); ?>-models"></datalist>
                                 <p class="description"><?php _e('The model must accept images. “Check key & load models” lists the models available to your key.', 'multi-post-adder'); ?></p>
+                            </td>
+                        </tr>
+                        <tr class="mpa-ai-p" data-for="<?php echo esc_attr($p); ?>">
+                            <th scope="row"><label for="mpa-ai-<?php echo esc_attr($p); ?>-backup-model"><?php echo esc_html(sprintf(__('%s backup model', 'multi-post-adder'), $label)); ?></label></th>
+                            <td>
+                                <input type="text" id="mpa-ai-<?php echo esc_attr($p); ?>-backup-model" name="mpa-ai-<?php echo esc_attr($p); ?>-backup-model" class="regular-text code" list="mpa-ai-<?php echo esc_attr($p); ?>-models" value="<?php echo esc_attr($s[$p . '_backup_model']); ?>" spellcheck="false" placeholder="<?php esc_attr_e('Optional', 'multi-post-adder'); ?>">
+                                <p class="description"><?php _e('Optional. Used automatically when the main model is overloaded (“high demand”). A lighter model, e.g. a Flash-Lite or Haiku model, is a good choice.', 'multi-post-adder'); ?></p>
                             </td>
                         </tr>
                     <?php endforeach; ?>
@@ -340,8 +424,10 @@ class MPA_AI {
         if ($provider === 'claude') {
             $headers['x-api-key'] = $key;
             $headers['anthropic-version'] = '2023-06-01';
-        } else {
+        } elseif ($provider === 'gemini') {
             $headers['x-goog-api-key'] = $key;
+        } else {
+            $headers['Authorization'] = 'Bearer ' . $key;
         }
 
         $args = ['method' => $method, 'timeout' => $timeout, 'headers' => $headers];
@@ -349,10 +435,19 @@ class MPA_AI {
 
         $response = wp_remote_request($url, $args);
         if (is_wp_error($response)) {
+            $name = self::provider_label($provider);
+            $detail = $response->get_error_message();
+            if (stripos($detail, 'cURL error 28') !== false || stripos($detail, 'timed out') !== false) {
+                return new WP_Error('mpa_ai_timeout', sprintf(
+                    /* translators: 1: provider name, 2: seconds */
+                    __('%1$s did not answer within %2$d seconds (it may be overloaded).', 'multi-post-adder'),
+                    $name, $timeout
+                ));
+            }
             return new WP_Error('mpa_ai_offline', sprintf(
-                /* translators: %s: provider name */
-                __('%s could not be reached. AI writing needs internet access.', 'multi-post-adder'),
-                $provider === 'gemini' ? 'Gemini' : 'Claude'
+                /* translators: 1: provider name, 2: technical error from the server */
+                __('%1$s could not be reached from this server: %2$s', 'multi-post-adder'),
+                $name, wp_strip_all_tags($detail)
             ));
         }
 
@@ -361,8 +456,26 @@ class MPA_AI {
 
         if ($code >= 200 && $code < 300) return is_array($data) ? $data : [];
 
-        $detail = is_array($data) && isset($data['error']['message']) ? $data['error']['message'] : '';
-        if ($code === 401 || $code === 403 || ($code === 400 && stripos($detail, 'api key') !== false)) {
+        $detail = '';
+        if (is_array($data) && isset($data['error']['message'])) $detail = (string) $data['error']['message'];
+        elseif (is_array($data) && isset($data['message']) && is_string($data['message'])) $detail = $data['message'];
+
+        $error_code = is_array($data) && isset($data['error']['code']) && is_string($data['error']['code']) ? $data['error']['code'] : '';
+        if (preg_match('/location is not supported|not (?:available|supported) in your (?:country|region|location)|unsupported[_ ](?:country|region)|country,? region,? or territory|(?:is )?not allowed (?:from|in) your (?:country|region|location)/i', $detail . ' ' . $error_code)) {
+            return new WP_Error('mpa_ai_region', sprintf(
+                /* translators: %s: provider name */
+                __('%s does not accept requests from the country where this website is hosted.', 'multi-post-adder'),
+                self::provider_label($provider)
+            ) . ' (' . wp_strip_all_tags($detail) . ')', ['status' => $code]);
+        }
+
+        if ($code === 402 || stripos($detail, 'insufficient balance') !== false || stripos($detail, 'credit balance is too low') !== false) {
+            $message = sprintf(
+                /* translators: %s: provider name */
+                __('Your %s account is out of credit. Add balance in its console, then retry.', 'multi-post-adder'),
+                self::provider_label($provider)
+            );
+        } elseif ($code === 401 || $code === 403 || ($code === 400 && stripos($detail, 'api key') !== false)) {
             $message = __('The API key was rejected. Check it in Settings → MPA Settings → AI.', 'multi-post-adder');
         } elseif ($code === 404) {
             $message = __('Model not found. Pick another model in Settings → MPA Settings → AI.', 'multi-post-adder');
@@ -376,7 +489,8 @@ class MPA_AI {
         }
         if ($detail !== '') $message .= ' (' . wp_strip_all_tags($detail) . ')';
 
-        return new WP_Error('mpa_ai_http', $message);
+        $busy = in_array($code, [500, 502, 503, 504, 529], true);
+        return new WP_Error($busy ? 'mpa_ai_busy' : 'mpa_ai_http', $message, ['status' => $code]);
     }
 
     /* ---------------------------------------------------------------------
@@ -387,13 +501,43 @@ class MPA_AI {
         check_ajax_referer('mpa_ai_settings', 'nonce');
         if (!current_user_can('manage_options')) wp_send_json_error(['message' => __('Not allowed.', 'multi-post-adder')], 403);
 
-        $provider = (isset($_POST['provider']) && $_POST['provider'] === 'gemini') ? 'gemini' : 'claude';
+        $provider = isset($_POST['provider']) ? sanitize_key(wp_unslash($_POST['provider'])) : '';
+        if (!array_key_exists($provider, self::providers())) $provider = 'claude';
+        $settings = self::get_settings();
         $typed = isset($_POST['key']) ? trim(sanitize_text_field(wp_unslash($_POST['key']))) : '';
-        $key = $typed !== '' ? $typed : self::get_settings()[$provider . '_key'];
+        $key = $typed !== '' ? $typed : $settings[$provider . '_key'];
         if ($key === '') wp_send_json_error(['message' => __('Enter an API key first.', 'multi-post-adder')]);
 
         $models = [];
-        if ($provider === 'claude') {
+        if (self::is_openai_compatible($provider)) {
+            if ($provider === 'qwen' && isset($_POST['base_url'])) {
+                $settings['qwen_base_url'] = self::clean_base_url(sanitize_text_field(wp_unslash($_POST['base_url'])));
+            }
+            $base = self::base_url($provider, $settings);
+            if ($base === '') wp_send_json_error(['message' => __('Enter the Qwen base URL first.', 'multi-post-adder')]);
+
+            $data = self::request($provider, 'GET', $base . '/models', $key, null, 20);
+            if (!is_wp_error($data)) {
+                foreach (($data['data'] ?? []) as $m) {
+                    if (!empty($m['id'])) $models[] = $m['id'];
+                }
+                wp_send_json_success(['models' => $models, 'listed' => true]);
+            }
+            if (!in_array($data->get_error_data()['status'] ?? 0, [404, 405], true)) {
+                wp_send_json_error(['message' => $data->get_error_message()]);
+            }
+
+            // No model list on this endpoint: check the key with a tiny request instead.
+            $model = isset($_POST['model']) ? preg_replace('/[^A-Za-z0-9._\-\/:]/', '', wp_unslash($_POST['model'])) : '';
+            if ($model === '') $model = $settings[$provider . '_model'];
+            $ping = self::request($provider, 'POST', $base . '/chat/completions', $key, [
+                'model' => $model,
+                'max_tokens' => 5,
+                'messages' => [['role' => 'user', 'content' => 'Reply with OK.']],
+            ], 20);
+            if (is_wp_error($ping)) wp_send_json_error(['message' => $ping->get_error_message()]);
+            wp_send_json_success(['models' => [], 'listed' => false]);
+        } elseif ($provider === 'claude') {
             $data = self::request('claude', 'GET', 'https://api.anthropic.com/v1/models?limit=100', $key, null, 20);
             if (is_wp_error($data)) wp_send_json_error(['message' => $data->get_error_message()]);
             foreach (($data['data'] ?? []) as $m) {
@@ -424,7 +568,7 @@ class MPA_AI {
         if (!current_user_can('edit_posts') || !current_user_can('upload_files')) {
             wp_send_json_error(['message' => __('Not allowed.', 'multi-post-adder')], 403);
         }
-        if (function_exists('set_time_limit')) @set_time_limit(120);
+        if (function_exists('set_time_limit')) @set_time_limit(300);
 
         $attachment_id = isset($_POST['attachment_id']) ? (int) $_POST['attachment_id'] : 0;
         $notes = isset($_POST['prompt']) ? sanitize_textarea_field(wp_unslash($_POST['prompt'])) : '';
@@ -439,6 +583,9 @@ class MPA_AI {
         if ($key === '') {
             wp_send_json_error(['message' => __('No API key saved. Add one in Settings → MPA Settings → AI.', 'multi-post-adder')]);
         }
+        if (self::is_openai_compatible($provider) && self::base_url($provider, $settings) === '') {
+            wp_send_json_error(['message' => __('Enter the Qwen base URL in Settings → MPA Settings → AI.', 'multi-post-adder')]);
+        }
 
         $image = self::image_payload($attachment_id);
         if (is_wp_error($image)) wp_send_json_error(['message' => $image->get_error_message()]);
@@ -448,13 +595,53 @@ class MPA_AI {
 
         [$system, $user] = self::build_prompt($settings, $notes, $file_name);
 
-        $result = $provider === 'gemini'
-            ? self::call_gemini($key, $settings['gemini_model'], $system, $user, $image)
-            : self::call_claude($key, $settings['claude_model'], $system, $user, $image);
-
+        $result = self::generate_with_fallback($settings, $key, $system, $user, $image);
         if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message()]);
 
         wp_send_json_success($result);
+    }
+
+    /** Errors worth trying again: the service was busy, slow or briefly unreachable. */
+    private static function is_temporary($error) {
+        return is_wp_error($error) && in_array($error->get_error_code(), ['mpa_ai_busy', 'mpa_ai_timeout', 'mpa_ai_offline'], true);
+    }
+
+    /**
+     * Main model with up to 2 automatic retries (after 2 s and 5 s) when it is
+     * busy; then the backup model, if one is set. Public for testing.
+     */
+    public static function generate_with_fallback($settings, $key, $system, $user, $image, $sleep = 'sleep') {
+        $provider = $settings['provider'];
+        $models = [$settings[$provider . '_model']];
+        $backup = $settings[$provider . '_backup_model'] ?? '';
+        if ($backup !== '' && $backup !== $models[0]) $models[] = $backup;
+
+        $result = null;
+        foreach ($models as $m => $model) {
+            $waits = $m === 0 ? [2, 5] : [3];
+            for ($attempt = 0; $attempt <= count($waits); $attempt++) {
+                if ($attempt > 0) call_user_func($sleep, $waits[$attempt - 1]);
+
+                if ($provider === 'gemini') {
+                    $result = self::call_gemini($key, $model, $system, $user, $image);
+                } elseif (self::is_openai_compatible($provider)) {
+                    $result = self::call_openai_compatible($provider, self::base_url($provider, $settings), $key, $model, $system, $user, $image);
+                } else {
+                    $result = self::call_claude($key, $model, $system, $user, $image);
+                }
+
+                if (!is_wp_error($result)) {
+                    $result['model'] = $model;
+                    $result['backup'] = $m > 0;
+                    return $result;
+                }
+                // A connection that failed outright (not a timeout) rarely fixes itself in seconds.
+                if (!self::is_temporary($result) || $result->get_error_code() === 'mpa_ai_offline' && $attempt >= 1) break;
+            }
+            // Wrong key, no connection at all, etc.: the backup model won't help.
+            if (!self::is_temporary($result) || $result->get_error_code() === 'mpa_ai_offline') break;
+        }
+        return $result;
     }
 
     /** Prompt text. Public for testing. */
@@ -549,8 +736,38 @@ class MPA_AI {
         ];
     }
 
+    /** Request body for OpenAI-compatible providers (DeepSeek, Qwen). Public for testing. */
+    public static function openai_body($model, $system, $user, $image) {
+        return [
+            'model' => $model,
+            'max_tokens' => 1024,
+            'messages' => [
+                ['role' => 'system', 'content' => $system],
+                ['role' => 'user', 'content' => [
+                    ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $image['mime'] . ';base64,' . $image['data']]],
+                    ['type' => 'text', 'text' => $user],
+                ]],
+            ],
+        ];
+    }
+
+    private static function call_openai_compatible($provider, $base, $key, $model, $system, $user, $image) {
+        $data = self::request($provider, 'POST', $base . '/chat/completions', $key, self::openai_body($model, $system, $user, $image), 45);
+        if (is_wp_error($data)) return $data;
+
+        $content = $data['choices'][0]['message']['content'] ?? '';
+        if (is_array($content)) {
+            $text = '';
+            foreach ($content as $part) {
+                if (isset($part['text']) && is_string($part['text'])) $text .= $part['text'];
+            }
+            $content = $text;
+        }
+        return self::parse_result((string) $content);
+    }
+
     private static function call_claude($key, $model, $system, $user, $image) {
-        $data = self::request('claude', 'POST', 'https://api.anthropic.com/v1/messages', $key, self::claude_body($model, $system, $user, $image));
+        $data = self::request('claude', 'POST', 'https://api.anthropic.com/v1/messages', $key, self::claude_body($model, $system, $user, $image), 45);
         if (is_wp_error($data)) return $data;
 
         $text = '';
@@ -562,7 +779,7 @@ class MPA_AI {
 
     private static function call_gemini($key, $model, $system, $user, $image) {
         $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent';
-        $data = self::request('gemini', 'POST', $url, $key, self::gemini_body($system, $user, $image));
+        $data = self::request('gemini', 'POST', $url, $key, self::gemini_body($system, $user, $image), 45);
         if (is_wp_error($data)) return $data;
 
         $text = '';

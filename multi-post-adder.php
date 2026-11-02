@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Multi Post Adder
  * Description: Adds multiple posts at once from a custom admin page.
- * Version: 1.14
+ * Version: 1.16
  * Author: A Soheili
  * Text Domain: multi-post-adder
  * Domain Path: /languages
@@ -63,6 +63,7 @@ add_action('admin_enqueue_scripts', function ($hook) {
                 'checking' => __('Checking…', 'multi-post-adder'),
                 /* translators: %d: number of models */
                 'keyOk' => __('Key works · %d models found', 'multi-post-adder'),
+                'keyOkNoList' => __('Key works · type the model name (this service does not list models)', 'multi-post-adder'),
                 'failed' => __('Check failed.', 'multi-post-adder'),
             ],
         ]);
@@ -117,6 +118,10 @@ add_action('admin_enqueue_scripts', function ($hook) {
                 'failed' => __('Failed', 'multi-post-adder'),
                 'stop' => __('Stop', 'multi-post-adder'),
                 'stopped' => __('Stopped', 'multi-post-adder'),
+                /* translators: %s: model name */
+                'viaBackup' => __('Written by the backup model (%s)', 'multi-post-adder'),
+                /* translators: %d: HTTP status code */
+                'serverError' => __('Your web server stopped the request (HTTP %d). The AI may have taken too long; retry this image.', 'multi-post-adder'),
             ],
         ]));
     }

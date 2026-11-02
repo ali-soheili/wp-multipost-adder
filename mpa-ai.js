@@ -13,6 +13,16 @@ jQuery(function ($) {
     if (window.mpa_ai_admin) {
         const admin = window.mpa_ai_admin;
 
+        // Show only the settings of the selected provider (the others keep their saved keys).
+        function showProvider() {
+            const selected = $('input[name="mpa-ai-provider"]:checked').val();
+            $('.mpa-ai-p').each(function () {
+                $(this).toggle($(this).data('for') === selected);
+            });
+        }
+        $(document).on('change', 'input[name="mpa-ai-provider"]', showProvider);
+        showProvider();
+
         $(document).on('click', '.mpa-ai-check', function () {
             const $btn = $(this);
             const provider = $btn.data('provider');
@@ -22,13 +32,20 @@ jQuery(function ($) {
             $btn.prop('disabled', true);
             $status.removeClass('is-ok is-error').text(admin.i18n.checking);
 
-            $.post(admin.ajaxUrl, { action: 'mpa_ai_models', nonce: admin.nonce, provider, key })
+            $.post(admin.ajaxUrl, {
+                action: 'mpa_ai_models',
+                nonce: admin.nonce,
+                provider,
+                key,
+                model: $(`#mpa-ai-${provider}-model`).val() || '',
+                base_url: $('#mpa-ai-qwen-base-url').val() || ''
+            })
                 .done(response => {
                     if (response && response.success) {
                         const models = response.data.models || [];
                         const $list = $(`#mpa-ai-${provider}-models`).empty();
                         models.forEach(m => $list.append($('<option>').attr('value', m)));
-                        $status.addClass('is-ok').text(admin.i18n.keyOk.replace('%d', models.length));
+                        $status.addClass('is-ok').text(response.data.listed === false ? admin.i18n.keyOkNoList : admin.i18n.keyOk.replace('%d', models.length));
                     } else {
                         $status.addClass('is-error').text((response && response.data && response.data.message) || admin.i18n.failed);
                     }
@@ -288,7 +305,8 @@ jQuery(function ($) {
             if (r.status === 'done') {
                 body = `<strong class="mpa-wz-r-title" dir="auto">${esc(r.data.title)}</strong>
                         <span class="mpa-wz-r-alt"><span class="dashicons dashicons-format-image" aria-hidden="true"></span><span dir="auto">${esc(r.data.alt)}</span></span>
-                        <span class="mpa-wz-r-desc" dir="auto">${esc(r.data.description)}</span>`;
+                        <span class="mpa-wz-r-desc" dir="auto">${esc(r.data.description)}</span>
+                        ${r.data.backup ? `<span class="mpa-wz-r-model">${esc(t.viaBackup.replace('%s', r.data.model))}</span>` : ''}`;
             } else if (r.status === 'error') {
                 body = `<span class="mpa-wz-r-error">${esc(r.error)}</span>
                         <button type="button" class="button-link mpa-wz-retry-one" data-id="${img.id}">${esc(t.retry)}</button>`;
@@ -348,7 +366,9 @@ jQuery(function ($) {
             }
         }, xhr => {
             const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
-            state.results[id] = { status: 'error', error: msg || t.failed };
+            // No JSON: the web server or PHP stopped the request (e.g. a time limit on the host).
+            const status = xhr && xhr.status ? xhr.status : 0;
+            state.results[id] = { status: 'error', error: msg || (status ? t.serverError.replace('%d', status) : t.failed) };
             return $.Deferred().resolve();
         }).always(() => {
             if (img) renderResults();
@@ -365,13 +385,16 @@ jQuery(function ($) {
         renderGenerateFooter();
 
         let chain = $.Deferred().resolve().promise();
-        ids.forEach(id => {
+        ids.forEach((id, i) => {
             chain = chain.then(() => {
                 if (state.stop) {
                     state.results[id] = { status: 'stopped' };
                     return null;
                 }
-                return generateOne(id);
+                // A short pause between images keeps free-tier rate limits happy.
+                const pause = $.Deferred();
+                setTimeout(() => pause.resolve(), i === 0 ? 0 : 1500);
+                return pause.then(() => (state.stop ? (state.results[id] = { status: 'stopped' }, null) : generateOne(id)));
             });
         });
         chain.always(() => {

@@ -1651,6 +1651,12 @@
     color: #b32d2e;
 }
 
+.mpa-wz-r-model {
+    color: #8c8f94;
+    font-size: 11px;
+    font-style: italic;
+}
+
 .mpa-wz-r-muted {
     display: inline-flex;
     align-items: center;
@@ -1777,4 +1783,14 @@
 
 #mpa-setup-notice[hidden] {
     display: none;
+}
+
+/* AI settings: one heading per provider */
+.mpa-ai-settings .mpa-ai-provider-head th {
+    padding: 18px 0 0;
+}
+
+.mpa-ai-settings .mpa-ai-provider-head h3 {
+    margin: 0;
+    font-size: 14px;
 }

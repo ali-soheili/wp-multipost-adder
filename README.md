@@ -22,7 +22,7 @@ The plugin is useful for WordPress sites that need to publish or prepare several
 - Translation-ready plugin structure
 - Automation box: fill placeholders in each post with one click (title translation, download link, image file name)
 - One-click updates from GitHub right inside the WordPress dashboard
-- Add Posts with AI: pick images, load a setup file, add notes, and let Claude or Gemini write each post's title, image ALT text and description
+- Add Posts with AI: pick images, load a setup file, add notes, and let Claude, Gemini, DeepSeek or Qwen write each post's title, image ALT text and description
 
 ## Technologies Used
 
@@ -69,7 +69,7 @@ Developers can change the translation languages with the `mpa_translate_source_l
 
 ## Add Posts with AI
 
-**Posts → Add Posts with AI** creates one post per image, with help from Claude or Gemini:
+**Posts → Add Posts with AI** creates one post per image, with help from Claude, Gemini, DeepSeek or Qwen:
 
 1. **Images** – select or upload images (drag to reorder). The number of images is the number of posts.
 2. **Setup file** – load a JSON setup file (required). It sets everything except the number of posts.
@@ -83,9 +83,10 @@ Failed images can be retried. Then the normal Add Multiple Posts page opens, fil
 
 ### AI settings (Settings → MPA Settings → AI)
 
-- **Provider:** Claude or Gemini.
-- **API keys:** from the [Claude Console](https://console.anthropic.com/settings/keys) or [Google AI Studio](https://aistudio.google.com/apikey). A Claude.ai or Gemini app subscription is not the same as API access. Keys are stored on the server and never sent to the browser.
+- **Provider:** Claude, Gemini, DeepSeek or Qwen (only the selected provider's settings are shown).
+- **API keys:** from the [Claude Console](https://platform.claude.com/settings/keys), [Google AI Studio](https://aistudio.google.com/api-keys), the [DeepSeek Platform](https://platform.deepseek.com/) or [Alibaba Cloud Model Studio](https://www.alibabacloud.com/help/en/model-studio/first-api-call-to-qwen). Qwen also needs the workspace **base URL** (ends in `/compatible-mode/v1`). A Claude.ai or Gemini app subscription is not the same as API access. Keys are stored on the server and never sent to the browser.
 - **Models:** “Check key & load models” lists the models your key can use. The model must accept images.
+- **Backup model (optional):** when the main model is overloaded (“high demand”), each image is retried twice automatically and then sent to the backup model.
 - **Language, title length, description length, default prompt.**
 
 Images are scaled down to at most 1568 px before sending. AI writing needs internet access.
@@ -137,7 +138,7 @@ Requires WordPress 5.8 or newer (uses the `Update URI` plugin header). The plugi
 The plugin loads only its own files and WordPress's built-in scripts, styles and icons; nothing comes from a CDN. On a site without internet access everything works except three optional online features:
 
 - **Translate title** needs Google Translate. Offline it stops after about 6 seconds with a clear message.
-- **Add Posts with AI** needs Claude or Gemini.
+- **Add Posts with AI** needs an online AI provider.
 - **Updates from GitHub** can be turned off under **Settings → MPA Settings → Updates → Update checks**. If left on, a failed check is retried at most every 6 hours.
 
 Scheduled posts are published by WP-Cron, which runs on your own server and needs no internet.
