@@ -79,6 +79,8 @@ Developers can change the translation languages with the `mpa_translate_source_l
    - short **image ALT text** (≤ 125 characters), also saved as the **image title**,
    - a short **description**, placed where `{custom_text}` is in the post content (or at the top if there is no `{custom_text}`).
 
+For a series of similar images, each request also tells the AI the image's position in the series and the titles already written for the others, so every post gets a distinct title.
+
 Failed images can be retried. Then the normal Add Multiple Posts page opens, filled in, so everything can still be checked and edited before publishing. The image ALT text and title are saved when you publish, schedule or save as draft.
 
 ### AI settings (Settings → MPA Settings → AI)

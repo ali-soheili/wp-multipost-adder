@@ -593,7 +593,21 @@ class MPA_AI {
         $file_name = pathinfo((string) get_attached_file($attachment_id), PATHINFO_FILENAME);
         $file_name = preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name);
 
-        [$system, $user] = self::build_prompt($settings, $notes, $file_name);
+        // The rest of the series, so similar images don't all get the same title.
+        $context = [
+            'position' => isset($_POST['position']) ? max(0, (int) $_POST['position']) : 0,
+            'total' => isset($_POST['total']) ? max(0, (int) $_POST['total']) : 0,
+            'previous_titles' => [],
+        ];
+        if (!empty($_POST['previous_titles']) && is_array($_POST['previous_titles'])) {
+            foreach (wp_unslash($_POST['previous_titles']) as $title) {
+                $title = trim(sanitize_text_field((string) $title));
+                if ($title !== '') $context['previous_titles'][] = mb_substr($title, 0, 150);
+            }
+            $context['previous_titles'] = array_slice(array_values(array_unique($context['previous_titles'])), -40);
+        }
+
+        [$system, $user] = self::build_prompt($settings, $notes, $file_name, $context);
 
         $result = self::generate_with_fallback($settings, $key, $system, $user, $image);
         if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message()]);
@@ -645,7 +659,7 @@ class MPA_AI {
     }
 
     /** Prompt text. Public for testing. */
-    public static function build_prompt($settings, $notes, $file_name) {
+    public static function build_prompt($settings, $notes, $file_name, $context = []) {
         $language = self::language_name_for_prompt($settings['language']);
         $max_title = (int) $settings['title_length'];
         $sentences = (int) $settings['description_sentences'];
@@ -655,12 +669,31 @@ class MPA_AI {
             . "- \"title\": a descriptive, SEO-friendly post title of at most {$max_title} characters. No quotes, emoji, hashtags or trailing period.\n"
             . "- \"alt\": alt text for the image that describes what is visible, at most 125 characters. Do not start with \"image of\" or \"photo of\".\n"
             . "- \"description\": " . ($sentences === 1 ? 'one short sentence' : "{$sentences} short sentences") . " introducing the post. Plain text, no markdown, no hashtags.\n"
-            . "Write all three values in {$language}. Do not invent facts that are not visible in the photo or given in the author's notes.";
+            . "Write all three values in {$language}. Do not invent facts that are not visible in the photo or given in the author's notes.\n"
+            . "The photos are often a series of similar images. Every title must be unique within the series: "
+            . "tell this image apart by what is specific to it (colour, tone, pattern, texture, material, angle, setting, details), "
+            . "and do not reuse the wording or structure of titles that were already used. Vary how the description begins, too.";
 
         $user = '';
         if (trim($notes) !== '') {
             $user .= "Notes from the author about these images:\n" . trim($notes) . "\n\n";
         }
+
+        $total = (int) ($context['total'] ?? 0);
+        $position = (int) ($context['position'] ?? 0);
+        if ($total > 1 && $position >= 1) {
+            $user .= "This is image {$position} of {$total} in the series.\n";
+        }
+
+        $previous = array_values(array_filter((array) ($context['previous_titles'] ?? []), 'strlen'));
+        if ($previous) {
+            $user .= "Titles already used for other images in this series (do not repeat or closely paraphrase any of them):\n";
+            foreach ($previous as $title) {
+                $user .= '- ' . $title . "\n";
+            }
+            $user .= "\n";
+        }
+
         $user .= 'Image file name: ' . $file_name;
 
         return [$system, $user];

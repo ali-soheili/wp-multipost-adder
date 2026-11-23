@@ -353,11 +353,22 @@ jQuery(function ($) {
         const img = state.images.find(x => x.id === id);
         state.results[id] = { status: 'working' };
         renderResults();
+        // Titles already written for the other images of this series, in order,
+        // so the AI can make this one different.
+        const previousTitles = state.images
+            .filter(other => other.id !== id)
+            .map(other => state.results[other.id])
+            .filter(r => r && r.status === 'done' && r.data && r.data.title)
+            .map(r => r.data.title);
+
         return $.post(automation.ajaxUrl, {
             action: 'mpa_ai_generate',
             nonce: automation.nonce,
             attachment_id: id,
-            prompt: $('#mpa-wz-prompt').val() || ''
+            prompt: $('#mpa-wz-prompt').val() || '',
+            position: state.images.findIndex(x => x.id === id) + 1,
+            total: state.images.length,
+            previous_titles: previousTitles
         }).then(response => {
             if (response && response.success) {
                 state.results[id] = { status: 'done', data: response.data };
