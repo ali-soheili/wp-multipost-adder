@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.16\n"
+"Project-Id-Version: Multi Post Adder 1.18\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -900,4 +900,29 @@ msgstr "آدرس پایه Qwen را در تنظیمات ← تنظیمات MPA �
 
 msgid "Key works · type the model name (this service does not list models)"
 msgstr "کلید کار می‌کند · نام مدل را تایپ کنید (این سرویس فهرست مدل‌ها را ارائه نمی‌دهد)"
+
+msgid "Images per request"
+msgstr "تعداد تصویر در هر درخواست"
+
+msgid "One at a time"
+msgstr "یکی‌یکی"
+
+#, php-format, python-format
+msgid "In groups of %d"
+msgstr "در گروه‌های %d‌تایی"
+
+msgid "Default for the Prompt step. Groups let the AI compare similar images and give each a different title. If a group fails, its images are redone one at a time."
+msgstr "پیش‌فرض مرحله پرامپت. با ارسال گروهی، هوش مصنوعی تصاویر مشابه را با هم مقایسه می‌کند و به هرکدام عنوان متفاوتی می‌دهد. اگر یک گروه ناموفق باشد، تصاویرش یکی‌یکی دوباره انجام می‌شوند."
+
+msgid "Send images"
+msgstr "ارسال تصاویر"
+
+msgid "Groups help with series of similar images: the AI compares them and gives each a different title."
+msgstr "ارسال گروهی برای مجموعه‌ای از تصاویر مشابه مفید است: هوش مصنوعی آن‌ها را مقایسه می‌کند و به هرکدام عنوان متفاوتی می‌دهد."
+
+msgid "A group needs at least two images."
+msgstr "هر گروه دست‌کم به دو تصویر نیاز دارد."
+
+msgid "Waiting · will be redone on its own"
+msgstr "در انتظار · جداگانه دوباره انجام می‌شود"
 

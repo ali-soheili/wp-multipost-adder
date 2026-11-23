@@ -142,7 +142,7 @@ jQuery(function ($) {
         }
         if (state.step < 3) return go(state.step + 1);
         go(4);
-        generate(state.images.map(img => img.id));
+        generate(state.images.map(img => img.id), $('#mpa-wz-group-size').val());
     });
 
     $back.on('click', () => go(Math.max(1, state.step - 1)));
@@ -313,7 +313,7 @@ jQuery(function ($) {
             } else if (r.status === 'working') {
                 body = `<span class="mpa-wz-r-muted"><span class="spinner is-active"></span>${esc(t.writing)}</span>`;
             } else {
-                body = `<span class="mpa-wz-r-muted">${esc(r.status === 'stopped' ? t.stopped : t.waiting)}</span>`;
+                body = `<span class="mpa-wz-r-muted">${esc(r.status === 'stopped' ? t.stopped : (r.note || t.waiting))}</span>`;
             }
             $list.append(`
                 <li class="mpa-wz-result is-${r.status}">
@@ -349,17 +349,28 @@ jQuery(function ($) {
         $retry.prop('hidden', !failed);
     }
 
+    // Titles already written for the other images of this series, in order,
+    // so the AI can make new ones different.
+    function titlesExcept(ids) {
+        return state.images
+            .filter(other => !ids.includes(other.id))
+            .map(other => state.results[other.id])
+            .filter(r => r && r.status === 'done' && r.data && r.data.title)
+            .map(r => r.data.title);
+    }
+
+    function errorFromXhr(xhr) {
+        const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
+        // No JSON: the web server or PHP stopped the request (e.g. a time limit on the host).
+        const status = xhr && xhr.status ? xhr.status : 0;
+        return msg || (status ? t.serverError.replace('%d', status) : t.failed);
+    }
+
     function generateOne(id) {
         const img = state.images.find(x => x.id === id);
         state.results[id] = { status: 'working' };
         renderResults();
-        // Titles already written for the other images of this series, in order,
-        // so the AI can make this one different.
-        const previousTitles = state.images
-            .filter(other => other.id !== id)
-            .map(other => state.results[other.id])
-            .filter(r => r && r.status === 'done' && r.data && r.data.title)
-            .map(r => r.data.title);
+        const previousTitles = titlesExcept([id]);
 
         return $.post(automation.ajaxUrl, {
             action: 'mpa_ai_generate',
@@ -376,18 +387,80 @@ jQuery(function ($) {
                 state.results[id] = { status: 'error', error: (response && response.data && response.data.message) || t.failed };
             }
         }, xhr => {
-            const msg = xhr && xhr.responseJSON && xhr.responseJSON.data && xhr.responseJSON.data.message;
-            // No JSON: the web server or PHP stopped the request (e.g. a time limit on the host).
-            const status = xhr && xhr.status ? xhr.status : 0;
-            state.results[id] = { status: 'error', error: msg || (status ? t.serverError.replace('%d', status) : t.failed) };
+            state.results[id] = { status: 'error', error: errorFromXhr(xhr) };
             return $.Deferred().resolve();
         }).always(() => {
             if (img) renderResults();
         });
     }
 
-    // One image after another: kind to rate limits and to the server.
-    function generate(ids) {
+    /**
+     * Several images in one request. Resolves with the ids that still need
+     * doing one at a time: images the AI skipped, or the whole group when the
+     * request failed for a reason that a smaller request may not have.
+     */
+    function generateGroup(ids) {
+        ids.forEach(id => { state.results[id] = { status: 'working' }; });
+        renderResults();
+        const first = state.images.findIndex(x => x.id === ids[0]);
+
+        return $.post(automation.ajaxUrl, {
+            action: 'mpa_ai_generate_group',
+            nonce: automation.nonce,
+            attachment_ids: ids,
+            prompt: $('#mpa-wz-prompt').val() || '',
+            position: first + 1,
+            total: state.images.length,
+            previous_titles: titlesExcept(ids)
+        }).then(response => {
+            if (response && response.success) {
+                const redo = [];
+                (response.data.items || []).forEach(item => {
+                    if (item.ok) {
+                        state.results[item.id] = { status: 'done', data: Object.assign({}, item, { model: response.data.model, backup: response.data.backup }) };
+                    } else {
+                        redo.push(item.id);
+                    }
+                });
+                ids.forEach(id => { if (!state.results[id] || state.results[id].status === 'working') redo.includes(id) || redo.push(id); });
+                return redo;
+            }
+            const data = (response && response.data) || {};
+            // Same answer for every image (wrong country, no connection): don't repeat it image by image.
+            if (['mpa_ai_region', 'mpa_ai_offline'].includes(data.code)) {
+                ids.forEach(id => { state.results[id] = { status: 'error', error: data.message || t.failed }; });
+                return [];
+            }
+            state.groupsFailed = true; // The whole request failed: do the rest of this run one at a time.
+            return ids;
+        }, () => {
+            state.groupsFailed = true;
+            return $.Deferred().resolve(ids).promise();
+        }).then(redo => {
+            redo.forEach(id => { state.results[id] = { status: 'waiting', note: t.redoingAlone }; });
+            renderResults();
+            return redo;
+        });
+    }
+
+    function chunk(ids, size) {
+        const out = [];
+        for (let i = 0; i < ids.length; i += size) out.push(ids.slice(i, i + size));
+        return out;
+    }
+
+    function pauseThen(ms, fn) {
+        const d = $.Deferred();
+        setTimeout(() => d.resolve(), ms);
+        return d.then(fn);
+    }
+
+    /**
+     * One request after another (kind to rate limits and to the server):
+     * single images, or groups when "Send images" is set to groups.
+     * Retries always go one at a time.
+     */
+    function generate(ids, groupSize) {
         state.running = true;
         state.stop = false;
         ids.forEach(id => { state.results[id] = { status: 'waiting' }; });
@@ -395,19 +468,45 @@ jQuery(function ($) {
         renderResults();
         renderGenerateFooter();
 
+        const size = Math.max(1, parseInt(groupSize, 10) || 1);
+        state.groupsFailed = false;
+        const ordered = state.images.map(img => img.id).filter(id => ids.includes(id));
         let chain = $.Deferred().resolve().promise();
-        ids.forEach((id, i) => {
+        let first = true;
+
+        const runSingle = id => {
             chain = chain.then(() => {
-                if (state.stop) {
-                    state.results[id] = { status: 'stopped' };
-                    return null;
-                }
-                // A short pause between images keeps free-tier rate limits happy.
-                const pause = $.Deferred();
-                setTimeout(() => pause.resolve(), i === 0 ? 0 : 1500);
-                return pause.then(() => (state.stop ? (state.results[id] = { status: 'stopped' }, null) : generateOne(id)));
+                if (state.stop) { state.results[id] = { status: 'stopped' }; return null; }
+                const wait = first ? 0 : 1500;
+                first = false;
+                return pauseThen(wait, () => (state.stop ? (state.results[id] = { status: 'stopped' }, null) : generateOne(id)));
+            });
+        };
+
+        chunk(ordered, size).forEach(group => {
+            if (group.length === 1) return runSingle(group[0]);
+            chain = chain.then(() => {
+                if (state.stop) { group.forEach(id => { state.results[id] = { status: 'stopped' }; }); return null; }
+                const wait = first ? 0 : 1500;
+                first = false;
+                return pauseThen(wait, () => {
+                    if (state.stop) { group.forEach(id => { state.results[id] = { status: 'stopped' }; }); return null; }
+                    // After a group request failed outright, don't keep trying groups.
+                    const request = state.groupsFailed ? $.Deferred().resolve(group).promise() : generateGroup(group);
+                    // Images the group could not do are redone one at a time, right away.
+                    return request.then(redo => {
+                        let inner = $.Deferred().resolve().promise();
+                        redo.forEach((id, k) => {
+                            inner = inner.then(() => (state.stop
+                                ? (state.results[id] = { status: 'stopped' }, null)
+                                : pauseThen(k === 0 && state.groupsFailed && redo === group ? 0 : 1500, () => generateOne(id))));
+                        });
+                        return inner;
+                    });
+                });
             });
         });
+
         chain.always(() => {
             state.running = false;
             renderResults();

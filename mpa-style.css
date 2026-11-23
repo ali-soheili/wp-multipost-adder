@@ -1543,6 +1543,25 @@
     box-sizing: border-box;
 }
 
+.mpa-wz-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px 12px;
+    margin: 12px 0 0;
+}
+
+.mpa-wz-group label {
+    font-weight: 600;
+}
+
+.mpa-wz-group .description {
+    flex-basis: 100%;
+    margin: 0;
+    color: #646970;
+    font-size: 12px;
+}
+
 .mpa-wz-provider {
     display: flex;
     flex-wrap: wrap;

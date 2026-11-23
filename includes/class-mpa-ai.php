@@ -18,10 +18,14 @@ class MPA_AI {
     const DEFAULT_CLAUDE_MODEL = 'claude-haiku-5-5';
     const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 
+    /** "Images per request" choices: 1 = one image per request. */
+    const GROUP_SIZES = [1, 3, 5, 8, 10];
+
     public static function init() {
         add_action('admin_init', [__CLASS__, 'handle_save']);
         add_action('wp_ajax_mpa_ai_models', [__CLASS__, 'ajax_models']);
         add_action('wp_ajax_mpa_ai_generate', [__CLASS__, 'ajax_generate']);
+        add_action('wp_ajax_mpa_ai_generate_group', [__CLASS__, 'ajax_generate_group']);
     }
 
     /* ---------------------------------------------------------------------
@@ -118,6 +122,7 @@ class MPA_AI {
             'description_sentences' => 2,
             'default_prompt' => '',
             'qwen_base_url' => '',
+            'group_size' => 1,
         ];
         foreach (self::providers() as $p => $info) {
             $defaults["{$p}_key"] = '';
@@ -129,6 +134,8 @@ class MPA_AI {
         if (!array_key_exists($s['provider'], self::providers())) $s['provider'] = 'claude';
         $s['title_length'] = max(30, min(120, (int) $s['title_length']));
         $s['description_sentences'] = max(1, min(4, (int) $s['description_sentences']));
+        if (!in_array((int) $s['group_size'], self::GROUP_SIZES, true)) $s['group_size'] = 1;
+        $s['group_size'] = (int) $s['group_size'];
         if (!array_key_exists($s['language'], self::languages())) $s['language'] = 'fa';
         foreach (self::providers() as $p => $info) {
             if ($s["{$p}_model"] === '') $s["{$p}_model"] = $info['model'];
@@ -148,6 +155,7 @@ class MPA_AI {
             'hasKey' => $key !== '',
             'language' => self::languages()[$s['language']],
             'defaultPrompt' => $s['default_prompt'],
+            'groupSize' => $s['group_size'],
             'settingsUrl' => admin_url('options-general.php?page=mpa-settings&tab=ai'),
         ];
     }
@@ -183,6 +191,7 @@ class MPA_AI {
         $new['language'] = $text('mpa-ai-language');
         $new['title_length'] = (int) $text('mpa-ai-title-length');
         $new['description_sentences'] = (int) $text('mpa-ai-description-sentences');
+        $new['group_size'] = (int) $text('mpa-ai-group-size');
         $new['default_prompt'] = isset($_POST['mpa-ai-default-prompt']) ? sanitize_textarea_field(wp_unslash($_POST['mpa-ai-default-prompt'])) : '';
 
         update_option(self::OPTION, $new, false);
@@ -306,6 +315,17 @@ class MPA_AI {
                         </td>
                     </tr>
                     <tr>
+                        <th scope="row"><label for="mpa-ai-group-size"><?php _e('Images per request', 'multi-post-adder'); ?></label></th>
+                        <td>
+                            <select id="mpa-ai-group-size" name="mpa-ai-group-size">
+                                <?php foreach (self::GROUP_SIZES as $n) : ?>
+                                    <option value="<?php echo $n; ?>" <?php selected($s['group_size'], $n); ?>><?php echo $n === 1 ? esc_html__('One at a time', 'multi-post-adder') : esc_html(sprintf(__('In groups of %d', 'multi-post-adder'), $n)); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <p class="description"><?php _e('Default for the Prompt step. Groups let the AI compare similar images and give each a different title. If a group fails, its images are redone one at a time.', 'multi-post-adder'); ?></p>
+                        </td>
+                    </tr>
+                    <tr>
                         <th scope="row"><label for="mpa-ai-default-prompt"><?php _e('Default prompt', 'multi-post-adder'); ?></label></th>
                         <td>
                             <textarea id="mpa-ai-default-prompt" name="mpa-ai-default-prompt" class="large-text" rows="4" placeholder="<?php esc_attr_e('e.g. These are screenshots of Windows software. Mention the app name if it is visible.', 'multi-post-adder'); ?>"><?php echo esc_textarea($s['default_prompt']); ?></textarea>
@@ -371,6 +391,15 @@ class MPA_AI {
                     <h2><?php _e('Tell the AI about these images', 'multi-post-adder'); ?></h2>
                     <p class="description"><?php _e('What are they, what should it focus on, any names or terms to use? The better the notes, the better the titles.', 'multi-post-adder'); ?></p>
                     <textarea id="mpa-wz-prompt" rows="5" class="large-text"><?php echo esc_textarea($s['defaultPrompt']); ?></textarea>
+                    <div class="mpa-wz-group">
+                        <label for="mpa-wz-group-size"><?php _e('Send images', 'multi-post-adder'); ?></label>
+                        <select id="mpa-wz-group-size">
+                            <?php foreach (self::GROUP_SIZES as $n) : ?>
+                                <option value="<?php echo $n; ?>" <?php selected($s['groupSize'], $n); ?>><?php echo $n === 1 ? esc_html__('One at a time', 'multi-post-adder') : esc_html(sprintf(__('In groups of %d', 'multi-post-adder'), $n)); ?></option>
+                            <?php endforeach; ?>
+                        </select>
+                        <span class="description"><?php _e('Groups help with series of similar images: the AI compares them and gives each a different title.', 'multi-post-adder'); ?></span>
+                    </div>
                     <?php if ($s['hasKey']) : ?>
                         <p class="mpa-wz-provider">
                             <span class="dashicons dashicons-admin-generic" aria-hidden="true"></span>
@@ -594,6 +623,74 @@ class MPA_AI {
         $file_name = preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name);
 
         // The rest of the series, so similar images don't all get the same title.
+        [$system, $user] = self::build_prompt($settings, $notes, $file_name, self::read_context());
+
+        $result = self::generate_with_fallback($settings, $key, $system, $user, $image);
+        if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message(), 'code' => $result->get_error_code()]);
+
+        wp_send_json_success($result);
+    }
+
+    /**
+     * Several images in one request, so the AI can compare them. Returns one
+     * entry per image; images the AI skipped come back with ok = false and are
+     * redone one at a time by the browser.
+     */
+    public static function ajax_generate_group() {
+        check_ajax_referer('mpa_automation', 'nonce');
+        if (!current_user_can('edit_posts') || !current_user_can('upload_files')) {
+            wp_send_json_error(['message' => __('Not allowed.', 'multi-post-adder')], 403);
+        }
+        if (function_exists('set_time_limit')) @set_time_limit(600);
+
+        $ids = isset($_POST['attachment_ids']) && is_array($_POST['attachment_ids']) ? array_values(array_unique(array_map('intval', $_POST['attachment_ids']))) : [];
+        $ids = array_slice(array_filter($ids), 0, max(self::GROUP_SIZES));
+        if (count($ids) < 2) wp_send_json_error(['message' => __('A group needs at least two images.', 'multi-post-adder')]);
+
+        $settings = self::get_settings();
+        $provider = $settings['provider'];
+        $key = $settings[$provider . '_key'];
+        if ($key === '') {
+            wp_send_json_error(['message' => __('No API key saved. Add one in Settings → MPA Settings → AI.', 'multi-post-adder')]);
+        }
+        if (self::is_openai_compatible($provider) && self::base_url($provider, $settings) === '') {
+            wp_send_json_error(['message' => __('Enter the Qwen base URL in Settings → MPA Settings → AI.', 'multi-post-adder')]);
+        }
+
+        $images = [];
+        foreach ($ids as $id) {
+            if (get_post_type($id) !== 'attachment' || !wp_attachment_is_image($id)) {
+                wp_send_json_error(['message' => __('This file is not an image.', 'multi-post-adder'), 'code' => 'mpa_ai_file']);
+            }
+            // Smaller images in a group: plenty for titles, and keeps the request fast.
+            $payload = self::image_payload($id, 1024);
+            if (is_wp_error($payload)) wp_send_json_error(['message' => $payload->get_error_message(), 'code' => 'mpa_ai_file']);
+            $file_name = pathinfo((string) get_attached_file($id), PATHINFO_FILENAME);
+            $images[] = ['payload' => $payload, 'file_name' => preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name)];
+        }
+
+        $notes = isset($_POST['prompt']) ? sanitize_textarea_field(wp_unslash($_POST['prompt'])) : '';
+        [$system, $parts] = self::build_group_prompt($settings, $notes, $images, self::read_context());
+
+        $count = count($ids);
+        $result = self::run_with_fallback(
+            $settings, $key, $system, $parts,
+            function ($text) use ($count) { return self::parse_group_result($text, $count); },
+            min(8000, 400 + 450 * $count),   // room for every item
+            min(150, 40 + 12 * $count)       // seconds: bigger requests take longer
+        );
+        if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message(), 'code' => $result->get_error_code()]);
+
+        $items = [];
+        foreach ($ids as $i => $id) {
+            $item = $result['items'][$i] ?? null;
+            $items[] = $item ? array_merge(['id' => $id, 'ok' => true], $item) : ['id' => $id, 'ok' => false];
+        }
+        wp_send_json_success(['items' => $items, 'model' => $result['model'], 'backup' => $result['backup']]);
+    }
+
+    /** Position in the series and titles already used, from the request. */
+    private static function read_context() {
         $context = [
             'position' => isset($_POST['position']) ? max(0, (int) $_POST['position']) : 0,
             'total' => isset($_POST['total']) ? max(0, (int) $_POST['total']) : 0,
@@ -606,13 +703,7 @@ class MPA_AI {
             }
             $context['previous_titles'] = array_slice(array_values(array_unique($context['previous_titles'])), -40);
         }
-
-        [$system, $user] = self::build_prompt($settings, $notes, $file_name, $context);
-
-        $result = self::generate_with_fallback($settings, $key, $system, $user, $image);
-        if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message()]);
-
-        wp_send_json_success($result);
+        return $context;
     }
 
     /** Errors worth trying again: the service was busy, slow or briefly unreachable. */
@@ -622,9 +713,10 @@ class MPA_AI {
 
     /**
      * Main model with up to 2 automatic retries (after 2 s and 5 s) when it is
-     * busy; then the backup model, if one is set. Public for testing.
+     * busy; then the backup model, if one is set. $parse turns the reply text
+     * into the result (or a WP_Error). Public for testing.
      */
-    public static function generate_with_fallback($settings, $key, $system, $user, $image, $sleep = 'sleep') {
+    public static function run_with_fallback($settings, $key, $system, $parts, $parse, $max_tokens = 1024, $timeout = 45, $sleep = 'sleep') {
         $provider = $settings['provider'];
         $models = [$settings[$provider . '_model']];
         $backup = $settings[$provider . '_backup_model'] ?? '';
@@ -636,13 +728,8 @@ class MPA_AI {
             for ($attempt = 0; $attempt <= count($waits); $attempt++) {
                 if ($attempt > 0) call_user_func($sleep, $waits[$attempt - 1]);
 
-                if ($provider === 'gemini') {
-                    $result = self::call_gemini($key, $model, $system, $user, $image);
-                } elseif (self::is_openai_compatible($provider)) {
-                    $result = self::call_openai_compatible($provider, self::base_url($provider, $settings), $key, $model, $system, $user, $image);
-                } else {
-                    $result = self::call_claude($key, $model, $system, $user, $image);
-                }
+                $result = self::call_model($provider, $settings, $key, $model, $system, $parts, $max_tokens, $timeout);
+                if (!is_wp_error($result)) $result = call_user_func($parse, $result);
 
                 if (!is_wp_error($result)) {
                     $result['model'] = $model;
@@ -656,6 +743,74 @@ class MPA_AI {
             if (!self::is_temporary($result) || $result->get_error_code() === 'mpa_ai_offline') break;
         }
         return $result;
+    }
+
+    /** One image: title, ALT text and description. */
+    public static function generate_with_fallback($settings, $key, $system, $user, $image, $sleep = 'sleep') {
+        return self::run_with_fallback($settings, $key, $system, [['image' => $image], ['text' => $user]], [__CLASS__, 'parse_result'], 1024, 45, $sleep);
+    }
+
+    /** The rules for title, ALT text and description, shared by both prompts. */
+    private static function writing_rules($settings) {
+        $max_title = (int) $settings['title_length'];
+        $sentences = (int) $settings['description_sentences'];
+        return "- \"title\": a descriptive, SEO-friendly post title of at most {$max_title} characters. No quotes, emoji, hashtags or trailing period.\n"
+            . "- \"alt\": alt text for the image that describes what is visible, at most 125 characters. Do not start with \"image of\" or \"photo of\".\n"
+            . "- \"description\": " . ($sentences === 1 ? 'one short sentence' : "{$sentences} short sentences") . " introducing the post. Plain text, no markdown, no hashtags.\n";
+    }
+
+    /** Notes, position in the series and titles already used: the text before the image(s). */
+    private static function context_text($notes, $context, $single) {
+        $text = '';
+        if (trim($notes) !== '') {
+            $text .= "Notes from the author about these images:\n" . trim($notes) . "\n\n";
+        }
+
+        $total = (int) ($context['total'] ?? 0);
+        $position = (int) ($context['position'] ?? 0);
+        $count = (int) ($context['count'] ?? 1);
+        if ($total > 1 && $position >= 1) {
+            $text .= $single || $count <= 1
+                ? "This is image {$position} of {$total} in the series.\n"
+                : 'These are images ' . $position . '–' . ($position + $count - 1) . " of {$total} in the series.\n";
+        }
+
+        $previous = array_values(array_filter((array) ($context['previous_titles'] ?? []), 'strlen'));
+        if ($previous) {
+            $text .= "Titles already used for other images in this series (do not repeat or closely paraphrase any of them):\n";
+            foreach ($previous as $title) {
+                $text .= '- ' . $title . "\n";
+            }
+            $text .= "\n";
+        }
+        return $text;
+    }
+
+    /**
+     * Prompt for several images in one request: system text and the content
+     * parts (intro, then "Image k" + the image for each). Public for testing.
+     */
+    public static function build_group_prompt($settings, $notes, $images, $context = []) {
+        $language = self::language_name_for_prompt($settings['language']);
+        $n = count($images);
+
+        $system = "You write metadata for WordPress blog posts. You receive {$n} photos in one message; each is introduced by a line \"Image k\" and becomes its own post.\n"
+            . "Reply with a single JSON object and nothing else, in this form:\n"
+            . '{"items":[{"image":1,"title":"…","alt":"…","description":"…"}, …]}' . "\n"
+            . "with exactly one item per photo, numbered like the photos, in the same order. For each item:\n"
+            . self::writing_rules($settings)
+            . "Write all values in {$language}. Do not invent facts that are not visible in the photo or given in the author's notes.\n"
+            . "The photos are a series of similar images. Compare them with each other before writing: every title must be unique "
+            . "and must name what sets that photo apart from the others (colour, tone, pattern, texture, material, angle, setting, details). "
+            . "Do not give the titles the same wording pattern, and vary how the descriptions begin.";
+
+        $context['count'] = $n;
+        $parts = [['text' => self::context_text($notes, $context, false) . "The {$n} photos follow."]];
+        foreach (array_values($images) as $k => $image) {
+            $parts[] = ['text' => 'Image ' . ($k + 1) . ' (file name: ' . $image['file_name'] . ')'];
+            $parts[] = ['image' => $image['payload']];
+        }
+        return [$system, $parts];
     }
 
     /** Prompt text. Public for testing. */
@@ -674,27 +829,7 @@ class MPA_AI {
             . "tell this image apart by what is specific to it (colour, tone, pattern, texture, material, angle, setting, details), "
             . "and do not reuse the wording or structure of titles that were already used. Vary how the description begins, too.";
 
-        $user = '';
-        if (trim($notes) !== '') {
-            $user .= "Notes from the author about these images:\n" . trim($notes) . "\n\n";
-        }
-
-        $total = (int) ($context['total'] ?? 0);
-        $position = (int) ($context['position'] ?? 0);
-        if ($total > 1 && $position >= 1) {
-            $user .= "This is image {$position} of {$total} in the series.\n";
-        }
-
-        $previous = array_values(array_filter((array) ($context['previous_titles'] ?? []), 'strlen'));
-        if ($previous) {
-            $user .= "Titles already used for other images in this series (do not repeat or closely paraphrase any of them):\n";
-            foreach ($previous as $title) {
-                $user .= '- ' . $title . "\n";
-            }
-            $user .= "\n";
-        }
-
-        $user .= 'Image file name: ' . $file_name;
+        $user = self::context_text($notes, $context, true) . 'Image file name: ' . $file_name;
 
         return [$system, $user];
     }
@@ -705,7 +840,7 @@ class MPA_AI {
      *
      * @return array{mime:string,data:string}|WP_Error
      */
-    private static function image_payload($attachment_id) {
+    private static function image_payload($attachment_id, $max_side = 1568) {
         $file = get_attached_file($attachment_id);
         if (!$file || !file_exists($file)) {
             return new WP_Error('mpa_ai_file', __('The image file could not be found on the server.', 'multi-post-adder'));
@@ -714,8 +849,8 @@ class MPA_AI {
         $editor = wp_get_image_editor($file);
         if (!is_wp_error($editor)) {
             $size = $editor->get_size();
-            if (!empty($size['width']) && ($size['width'] > 1568 || $size['height'] > 1568)) {
-                $editor->resize(1568, 1568, false);
+            if (!empty($size['width']) && ($size['width'] > $max_side || $size['height'] > $max_side)) {
+                $editor->resize($max_side, $max_side, false);
             }
             $editor->set_quality(85);
             $tmp = wp_tempnam('mpa-ai.jpg');
@@ -738,104 +873,182 @@ class MPA_AI {
         return new WP_Error('mpa_ai_file', __('The image could not be prepared for the AI (unsupported format or too large).', 'multi-post-adder'));
     }
 
+    /*
+     * Message content is a list of parts, each ['text' => '…'] or
+     * ['image' => ['mime' => …, 'data' => base64]], in the order the model sees them.
+     */
+
     /** Request body for Claude. Public for testing. */
-    public static function claude_body($model, $system, $user, $image) {
+    public static function claude_body_parts($model, $system, $parts, $max_tokens = 1024) {
+        $content = [];
+        foreach ($parts as $part) {
+            $content[] = isset($part['image'])
+                ? ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $part['image']['mime'], 'data' => $part['image']['data']]]
+                : ['type' => 'text', 'text' => $part['text']];
+        }
         return [
             'model' => $model,
-            'max_tokens' => 1024,
+            'max_tokens' => $max_tokens,
             'system' => $system,
-            'messages' => [[
-                'role' => 'user',
-                'content' => [
-                    ['type' => 'image', 'source' => ['type' => 'base64', 'media_type' => $image['mime'], 'data' => $image['data']]],
-                    ['type' => 'text', 'text' => $user],
-                ],
-            ]],
+            'messages' => [['role' => 'user', 'content' => $content]],
         ];
     }
 
     /** Request body for Gemini. Public for testing. */
-    public static function gemini_body($system, $user, $image) {
+    public static function gemini_body_parts($system, $parts) {
+        $out = [];
+        foreach ($parts as $part) {
+            $out[] = isset($part['image'])
+                ? ['inline_data' => ['mime_type' => $part['image']['mime'], 'data' => $part['image']['data']]]
+                : ['text' => $part['text']];
+        }
         return [
             'systemInstruction' => ['parts' => [['text' => $system]]],
-            'contents' => [[
-                'role' => 'user',
-                'parts' => [
-                    ['inline_data' => ['mime_type' => $image['mime'], 'data' => $image['data']]],
-                    ['text' => $user],
-                ],
-            ]],
+            'contents' => [['role' => 'user', 'parts' => $out]],
             'generationConfig' => ['responseMimeType' => 'application/json', 'temperature' => 0.4],
         ];
     }
 
     /** Request body for OpenAI-compatible providers (DeepSeek, Qwen). Public for testing. */
-    public static function openai_body($model, $system, $user, $image) {
+    public static function openai_body_parts($model, $system, $parts, $max_tokens = 1024) {
+        $content = [];
+        foreach ($parts as $part) {
+            $content[] = isset($part['image'])
+                ? ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $part['image']['mime'] . ';base64,' . $part['image']['data']]]
+                : ['type' => 'text', 'text' => $part['text']];
+        }
         return [
             'model' => $model,
-            'max_tokens' => 1024,
+            'max_tokens' => $max_tokens,
             'messages' => [
                 ['role' => 'system', 'content' => $system],
-                ['role' => 'user', 'content' => [
-                    ['type' => 'image_url', 'image_url' => ['url' => 'data:' . $image['mime'] . ';base64,' . $image['data']]],
-                    ['type' => 'text', 'text' => $user],
-                ]],
+                ['role' => 'user', 'content' => $content],
             ],
         ];
     }
 
-    private static function call_openai_compatible($provider, $base, $key, $model, $system, $user, $image) {
-        $data = self::request($provider, 'POST', $base . '/chat/completions', $key, self::openai_body($model, $system, $user, $image), 45);
-        if (is_wp_error($data)) return $data;
-
-        $content = $data['choices'][0]['message']['content'] ?? '';
-        if (is_array($content)) {
-            $text = '';
-            foreach ($content as $part) {
-                if (isset($part['text']) && is_string($part['text'])) $text .= $part['text'];
-            }
-            $content = $text;
-        }
-        return self::parse_result((string) $content);
+    // Single-image shortcuts (image first, then the text).
+    public static function claude_body($model, $system, $user, $image) {
+        return self::claude_body_parts($model, $system, [['image' => $image], ['text' => $user]]);
     }
 
-    private static function call_claude($key, $model, $system, $user, $image) {
-        $data = self::request('claude', 'POST', 'https://api.anthropic.com/v1/messages', $key, self::claude_body($model, $system, $user, $image), 45);
+    public static function gemini_body($system, $user, $image) {
+        return self::gemini_body_parts($system, [['image' => $image], ['text' => $user]]);
+    }
+
+    public static function openai_body($model, $system, $user, $image) {
+        return self::openai_body_parts($model, $system, [['image' => $image], ['text' => $user]]);
+    }
+
+    /**
+     * Sends one request and returns the model's reply text.
+     *
+     * @return string|WP_Error
+     */
+    private static function call_model($provider, $settings, $key, $model, $system, $parts, $max_tokens, $timeout) {
+        if ($provider === 'gemini') {
+            $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent';
+            $data = self::request('gemini', 'POST', $url, $key, self::gemini_body_parts($system, $parts), $timeout);
+            if (is_wp_error($data)) return $data;
+
+            $text = '';
+            foreach (($data['candidates'][0]['content']['parts'] ?? []) as $part) {
+                if (isset($part['text']) && empty($part['thought'])) $text .= $part['text'];
+            }
+            if ($text === '' && !empty($data['promptFeedback']['blockReason'])) {
+                return new WP_Error('mpa_ai_blocked', __('The AI refused to describe this image.', 'multi-post-adder'));
+            }
+            return $text;
+        }
+
+        if (self::is_openai_compatible($provider)) {
+            $data = self::request($provider, 'POST', self::base_url($provider, $settings) . '/chat/completions', $key, self::openai_body_parts($model, $system, $parts, $max_tokens), $timeout);
+            if (is_wp_error($data)) return $data;
+
+            $content = $data['choices'][0]['message']['content'] ?? '';
+            if (is_array($content)) {
+                $text = '';
+                foreach ($content as $part) {
+                    if (isset($part['text']) && is_string($part['text'])) $text .= $part['text'];
+                }
+                $content = $text;
+            }
+            return (string) $content;
+        }
+
+        $data = self::request('claude', 'POST', 'https://api.anthropic.com/v1/messages', $key, self::claude_body_parts($model, $system, $parts, $max_tokens), $timeout);
         if (is_wp_error($data)) return $data;
 
         $text = '';
         foreach (($data['content'] ?? []) as $block) {
             if (($block['type'] ?? '') === 'text') $text .= $block['text'];
         }
-        return self::parse_result($text);
-    }
-
-    private static function call_gemini($key, $model, $system, $user, $image) {
-        $url = 'https://generativelanguage.googleapis.com/v1beta/models/' . rawurlencode($model) . ':generateContent';
-        $data = self::request('gemini', 'POST', $url, $key, self::gemini_body($system, $user, $image), 45);
-        if (is_wp_error($data)) return $data;
-
-        $text = '';
-        foreach (($data['candidates'][0]['content']['parts'] ?? []) as $part) {
-            if (isset($part['text']) && empty($part['thought'])) $text .= $part['text'];
-        }
-        if ($text === '' && !empty($data['promptFeedback']['blockReason'])) {
-            return new WP_Error('mpa_ai_blocked', __('The AI refused to describe this image.', 'multi-post-adder'));
-        }
-        return self::parse_result($text);
+        return $text;
     }
 
     /** Pulls {title, alt, description} out of the model's reply. Public for testing. */
     public static function parse_result($text) {
-        $text = trim((string) $text);
-        $start = strpos($text, '{');
-        $end = strrpos($text, '}');
-        $json = ($start !== false && $end !== false && $end > $start) ? json_decode(substr($text, $start, $end - $start + 1), true) : null;
-
+        $json = self::extract_json($text);
         if (!is_array($json)) {
             return new WP_Error('mpa_ai_parse', __('The AI reply could not be read. Retry this image.', 'multi-post-adder'));
         }
+        $result = self::clean_item($json);
+        if ($result === null) {
+            return new WP_Error('mpa_ai_parse', __('The AI reply was empty. Retry this image.', 'multi-post-adder'));
+        }
+        return $result;
+    }
 
+    /**
+     * Reply for a group: one {title, alt, description} per image, matched by
+     * the "image" number (or by order). Images the reply left out are null.
+     * Public for testing.
+     *
+     * @return array{items: array<int, array|null>}|WP_Error
+     */
+    public static function parse_group_result($text, $count) {
+        $json = self::extract_json($text);
+        $list = null;
+        if (is_array($json) && isset($json['items']) && is_array($json['items'])) $list = $json['items'];
+        elseif (is_array($json) && $json && array_keys($json) === range(0, count($json) - 1)) $list = $json;
+
+        if (!is_array($list) || !$list) {
+            return new WP_Error('mpa_ai_parse', __('The AI reply could not be read. Retry this image.', 'multi-post-adder'));
+        }
+
+        $items = array_fill(0, $count, null);
+        foreach (array_values($list) as $i => $entry) {
+            if (!is_array($entry)) continue;
+            $number = isset($entry['image']) && is_numeric($entry['image']) ? (int) $entry['image'] - 1 : $i;
+            if ($number < 0 || $number >= $count || $items[$number] !== null) continue;
+            $items[$number] = self::clean_item($entry);
+        }
+
+        if (!array_filter($items)) {
+            return new WP_Error('mpa_ai_parse', __('The AI reply was empty. Retry this image.', 'multi-post-adder'));
+        }
+        return ['items' => $items];
+    }
+
+    /** The outermost JSON object or array in a reply (models sometimes add text or ``` fences). */
+    private static function extract_json($text) {
+        $text = trim((string) $text);
+        $candidates = [];
+        foreach (['{' => '}', '[' => ']'] as $open => $close) {
+            $start = strpos($text, $open);
+            $end = strrpos($text, $close);
+            if ($start !== false && $end !== false && $end > $start) $candidates[$start] = substr($text, $start, $end - $start + 1);
+        }
+        ksort($candidates);
+        foreach ($candidates as $candidate) {
+            $json = json_decode($candidate, true);
+            if (is_array($json)) return $json;
+        }
+        return null;
+    }
+
+    /** Cleans one {title, alt, description}; null when all three are empty. */
+    private static function clean_item($json) {
         $clean = function ($value) {
             $value = is_string($value) ? $value : '';
             $value = wp_strip_all_tags($value);
@@ -856,9 +1069,7 @@ class MPA_AI {
             'description' => $clean($json['description'] ?? ''),
         ];
 
-        if ($result['title'] === '' && $result['alt'] === '' && $result['description'] === '') {
-            return new WP_Error('mpa_ai_parse', __('The AI reply was empty. Retry this image.', 'multi-post-adder'));
-        }
+        if ($result['title'] === '' && $result['alt'] === '' && $result['description'] === '') return null;
         return $result;
     }
 }

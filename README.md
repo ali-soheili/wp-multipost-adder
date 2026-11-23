@@ -81,6 +81,8 @@ Developers can change the translation languages with the `mpa_translate_source_l
 
 For a series of similar images, each request also tells the AI the image's position in the series and the titles already written for the others, so every post gets a distinct title.
 
+**Send images in groups:** in the Prompt step, *Send images* can be set to groups of 3, 5, 8 or 10 (default under **Images per request** in the AI settings). The AI then sees a whole group at once and compares the photos, which works best for series of very similar images. Images in a group are sent at up to 1024 px. If a group request fails, or the AI skips an image, those images are redone one at a time automatically, and the rest of that run continues one at a time.
+
 Failed images can be retried. Then the normal Add Multiple Posts page opens, filled in, so everything can still be checked and edited before publishing. The image ALT text and title are saved when you publish, schedule or save as draft.
 
 ### AI settings (Settings → MPA Settings → AI)
