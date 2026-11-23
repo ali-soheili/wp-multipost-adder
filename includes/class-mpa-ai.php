@@ -365,7 +365,12 @@ class MPA_AI {
                             <span class="dashicons dashicons-format-gallery" aria-hidden="true"></span><?php _e('Select or upload images', 'multi-post-adder'); ?>
                         </button>
                         <span class="mpa-wz-count"></span>
+                        <label class="mpa-wz-hints-toggle">
+                            <input type="checkbox" class="mpa-switch" id="mpa-wz-hints">
+                            <span><?php _e('Add hints', 'multi-post-adder'); ?></span>
+                        </label>
                     </div>
+                    <p class="mpa-wz-hints-help description" hidden><?php _e('A hint of 1–3 words per image (e.g. “oak” or “dark walnut”) tells the AI what it is looking at. It becomes the main subject of the title. Leave empty to skip.', 'multi-post-adder'); ?></p>
                 </section>
 
                 <section class="mpa-wizard-step" data-step="2" hidden>
@@ -623,7 +628,9 @@ class MPA_AI {
         $file_name = preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name);
 
         // The rest of the series, so similar images don't all get the same title.
-        [$system, $user] = self::build_prompt($settings, $notes, $file_name, self::read_context());
+        $context = self::read_context();
+        $context['hint'] = self::clean_hint($_POST['hint'] ?? '');
+        [$system, $user] = self::build_prompt($settings, $notes, $file_name, $context);
 
         $result = self::generate_with_fallback($settings, $key, $system, $user, $image);
         if (is_wp_error($result)) wp_send_json_error(['message' => $result->get_error_message(), 'code' => $result->get_error_code()]);
@@ -657,8 +664,9 @@ class MPA_AI {
             wp_send_json_error(['message' => __('Enter the Qwen base URL in Settings → MPA Settings → AI.', 'multi-post-adder')]);
         }
 
+        $hints = isset($_POST['hints']) && is_array($_POST['hints']) ? array_values($_POST['hints']) : [];
         $images = [];
-        foreach ($ids as $id) {
+        foreach ($ids as $i => $id) {
             if (get_post_type($id) !== 'attachment' || !wp_attachment_is_image($id)) {
                 wp_send_json_error(['message' => __('This file is not an image.', 'multi-post-adder'), 'code' => 'mpa_ai_file']);
             }
@@ -666,7 +674,11 @@ class MPA_AI {
             $payload = self::image_payload($id, 1024);
             if (is_wp_error($payload)) wp_send_json_error(['message' => $payload->get_error_message(), 'code' => 'mpa_ai_file']);
             $file_name = pathinfo((string) get_attached_file($id), PATHINFO_FILENAME);
-            $images[] = ['payload' => $payload, 'file_name' => preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name)];
+            $images[] = [
+                'payload' => $payload,
+                'file_name' => preg_replace('/-(scaled|rotated|\d+x\d+)$/', '', $file_name),
+                'hint' => self::clean_hint($hints[$i] ?? ''),
+            ];
         }
 
         $notes = isset($_POST['prompt']) ? sanitize_textarea_field(wp_unslash($_POST['prompt'])) : '';
@@ -687,6 +699,12 @@ class MPA_AI {
             $items[] = $item ? array_merge(['id' => $id, 'ok' => true], $item) : ['id' => $id, 'ok' => false];
         }
         wp_send_json_success(['items' => $items, 'model' => $result['model'], 'backup' => $result['backup']]);
+    }
+
+    /** A short hint from the author: plain text, at most 60 characters. */
+    private static function clean_hint($hint) {
+        $hint = trim(sanitize_text_field(wp_unslash((string) $hint)));
+        return mb_substr($hint, 0, 60);
     }
 
     /** Position in the series and titles already used, from the request. */
@@ -756,7 +774,9 @@ class MPA_AI {
         $sentences = (int) $settings['description_sentences'];
         return "- \"title\": a descriptive, SEO-friendly post title of at most {$max_title} characters. No quotes, emoji, hashtags or trailing period.\n"
             . "- \"alt\": alt text for the image that describes what is visible, at most 125 characters. Do not start with \"image of\" or \"photo of\".\n"
-            . "- \"description\": " . ($sentences === 1 ? 'one short sentence' : "{$sentences} short sentences") . " introducing the post. Plain text, no markdown, no hashtags.\n";
+            . "- \"description\": " . ($sentences === 1 ? 'one short sentence' : "{$sentences} short sentences") . " introducing the post. Plain text, no markdown, no hashtags.\n"
+            . "If the author gives a hint for an image, it says what the image shows: treat it as the main subject, work it into the title "
+            . "(translated into the output language if needed) and keep the ALT text and description consistent with it.\n";
     }
 
     /** Notes, position in the series and titles already used: the text before the image(s). */
@@ -807,7 +827,9 @@ class MPA_AI {
         $context['count'] = $n;
         $parts = [['text' => self::context_text($notes, $context, false) . "The {$n} photos follow."]];
         foreach (array_values($images) as $k => $image) {
-            $parts[] = ['text' => 'Image ' . ($k + 1) . ' (file name: ' . $image['file_name'] . ')'];
+            $label = 'Image ' . ($k + 1) . ' (file name: ' . $image['file_name'] . ')';
+            if (!empty($image['hint'])) $label .= ' — author\'s hint: "' . $image['hint'] . '"';
+            $parts[] = ['text' => $label];
             $parts[] = ['image' => $image['payload']];
         }
         return [$system, $parts];
@@ -816,20 +838,19 @@ class MPA_AI {
     /** Prompt text. Public for testing. */
     public static function build_prompt($settings, $notes, $file_name, $context = []) {
         $language = self::language_name_for_prompt($settings['language']);
-        $max_title = (int) $settings['title_length'];
-        $sentences = (int) $settings['description_sentences'];
 
         $system = "You write metadata for WordPress blog posts, based on one photo per post.\n"
             . "Reply with a single JSON object and nothing else, with exactly these keys:\n"
-            . "- \"title\": a descriptive, SEO-friendly post title of at most {$max_title} characters. No quotes, emoji, hashtags or trailing period.\n"
-            . "- \"alt\": alt text for the image that describes what is visible, at most 125 characters. Do not start with \"image of\" or \"photo of\".\n"
-            . "- \"description\": " . ($sentences === 1 ? 'one short sentence' : "{$sentences} short sentences") . " introducing the post. Plain text, no markdown, no hashtags.\n"
+            . self::writing_rules($settings)
             . "Write all three values in {$language}. Do not invent facts that are not visible in the photo or given in the author's notes.\n"
             . "The photos are often a series of similar images. Every title must be unique within the series: "
             . "tell this image apart by what is specific to it (colour, tone, pattern, texture, material, angle, setting, details), "
             . "and do not reuse the wording or structure of titles that were already used. Vary how the description begins, too.";
 
         $user = self::context_text($notes, $context, true) . 'Image file name: ' . $file_name;
+        if (!empty($context['hint'])) {
+            $user .= "\nAuthor's hint for this image: \"" . $context['hint'] . '"';
+        }
 
         return [$system, $user];
     }

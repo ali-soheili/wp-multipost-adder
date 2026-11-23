@@ -1,7 +1,7 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Multi Post Adder 1.18\n"
+"Project-Id-Version: Multi Post Adder 1.19\n"
 "Report-Msgid-Bugs-To: \n"
 "POT-Creation-Date: 2026-07-08 00:00+0000\n"
 "PO-Revision-Date: 2026-07-08 00:00+0000\n"
@@ -925,4 +925,21 @@ msgstr "هر گروه دست‌کم به دو تصویر نیاز دارد."
 
 msgid "Waiting · will be redone on its own"
 msgstr "در انتظار · جداگانه دوباره انجام می‌شود"
+
+msgid "Add hints"
+msgstr "افزودن راهنما"
+
+msgid "A hint of 1–3 words per image (e.g. “oak” or “dark walnut”) tells the AI what it is looking at. It becomes the main subject of the title. Leave empty to skip."
+msgstr "یک راهنمای ۱ تا ۳ کلمه‌ای برای هر تصویر (مثلاً «بلوط» یا «گردوی تیره») به هوش مصنوعی می‌گوید به چه چیزی نگاه می‌کند. این راهنما موضوع اصلی عنوان می‌شود. برای رد کردن، خالی بگذارید."
+
+msgid "Hint (optional)"
+msgstr "راهنما (اختیاری)"
+
+#, php-format, python-format
+msgid "Hint for image %d"
+msgstr "راهنمای تصویر %d"
+
+#, php-format, python-format
+msgid "Hint: %s"
+msgstr "راهنما: %s"
 

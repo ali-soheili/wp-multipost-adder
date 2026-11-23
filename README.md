@@ -71,7 +71,7 @@ Developers can change the translation languages with the `mpa_translate_source_l
 
 **Posts → Add Posts with AI** creates one post per image, with help from Claude, Gemini, DeepSeek or Qwen:
 
-1. **Images** – select or upload images (drag to reorder). The number of images is the number of posts.
+1. **Images** – select or upload images (drag to reorder). The number of images is the number of posts. Switch on **Add hints** to give an image a 1–3 word hint (e.g. “oak”); the AI treats it as the main subject of the title.
 2. **Setup file** – load a JSON setup file (required). It sets everything except the number of posts.
 3. **Prompt** – notes that help the AI understand the images.
 4. **Generate** – for each image the AI writes:

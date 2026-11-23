@@ -83,7 +83,8 @@ jQuery(function ($) {
     const $hint = $wizard.find('.mpa-wz-hint');
 
     function esc(text) {
-        return $('<span>').text(text == null ? '' : String(text)).html();
+        // Safe in text and in attribute values.
+        return $('<span>').text(text == null ? '' : String(text)).html().replace(/"/g, '&quot;').replace(/'/g, '&#39;');
     }
 
     /* ---------- navigation ---------- */
@@ -163,6 +164,8 @@ jQuery(function ($) {
                     <span class="mpa-wz-image-num">${i + 1}</span>
                     <button type="button" class="mpa-wz-image-remove" aria-label="${esc(t.remove)}" title="${esc(t.remove)}"><span class="dashicons dashicons-no-alt" aria-hidden="true"></span></button>
                     <span class="mpa-wz-image-name" title="${esc(img.filename)}">${esc(img.filename)}</span>
+                    <input type="text" class="mpa-wz-hint-input" data-id="${img.id}" value="${esc(img.hint || '')}" maxlength="60" dir="auto"
+                           placeholder="${esc(t.hintPlaceholder)}" aria-label="${esc(t.hintLabel.replace('%d', i + 1))}">
                 </li>`);
         });
         const n = state.images.length;
@@ -187,7 +190,8 @@ jQuery(function ($) {
                         id: att.id,
                         url: att.url,
                         thumb: (sizes.medium || sizes.thumbnail || sizes.full || { url: att.url }).url,
-                        filename: fileBase(att)
+                        filename: fileBase(att),
+                        hint: ''
                     });
                 });
                 renderImages();
@@ -195,6 +199,49 @@ jQuery(function ($) {
         }
         frame.open();
     });
+
+    /* ---------- hints ---------- */
+
+    const $hintsToggle = $('#mpa-wz-hints');
+    const HINTS_KEY = 'mpa-ai-hints-on';
+
+    function hintsOn() {
+        return $hintsToggle.is(':checked');
+    }
+
+    function setHints(on) {
+        $wizard.toggleClass('has-hints', on);
+        $wizard.find('.mpa-wz-hints-help').prop('hidden', !on);
+    }
+
+    // Remember the switch in this browser only (a convenience; nothing breaks without it).
+    try { $hintsToggle.prop('checked', window.localStorage.getItem(HINTS_KEY) === '1'); } catch (e) {}
+    setHints(hintsOn());
+    $hintsToggle.on('change', function () {
+        setHints(this.checked);
+        try { window.localStorage.setItem(HINTS_KEY, this.checked ? '1' : '0'); } catch (e) {}
+        if (this.checked) $wizard.find('.mpa-wz-hint-input').first().trigger('focus');
+    });
+
+    $wizard.on('input change', '.mpa-wz-hint-input', function () {
+        const img = state.images.find(x => x.id === Number($(this).data('id')));
+        if (img) img.hint = this.value;
+    });
+
+    // Enter moves to the next image's hint instead of doing nothing.
+    $wizard.on('keydown', '.mpa-wz-hint-input', function (e) {
+        if (e.key !== 'Enter') return;
+        e.preventDefault();
+        const $all = $wizard.find('.mpa-wz-hint-input');
+        $all.eq($all.index(this) + 1).trigger('focus');
+    });
+
+    // The hint sent for an image: only while hints are switched on.
+    function hintFor(id) {
+        if (!hintsOn()) return '';
+        const img = state.images.find(x => x.id === id);
+        return img && img.hint ? img.hint.trim() : '';
+    }
 
     $wizard.on('click', '.mpa-wz-image-remove', function () {
         const id = Number($(this).closest('.mpa-wz-image').data('id'));
@@ -315,6 +362,8 @@ jQuery(function ($) {
             } else {
                 body = `<span class="mpa-wz-r-muted">${esc(r.status === 'stopped' ? t.stopped : (r.note || t.waiting))}</span>`;
             }
+            const hint = hintFor(img.id);
+            if (hint) body = `<span class="mpa-wz-r-hint" dir="auto">${esc(t.hintShown.replace('%s', hint))}</span>` + body;
             $list.append(`
                 <li class="mpa-wz-result is-${r.status}">
                     <span class="mpa-wz-r-thumb"><img src="${esc(img.thumb)}" alt=""><span class="mpa-wz-image-num">${i + 1}</span></span>
@@ -379,7 +428,8 @@ jQuery(function ($) {
             prompt: $('#mpa-wz-prompt').val() || '',
             position: state.images.findIndex(x => x.id === id) + 1,
             total: state.images.length,
-            previous_titles: previousTitles
+            previous_titles: previousTitles,
+            hint: hintFor(id)
         }).then(response => {
             if (response && response.success) {
                 state.results[id] = { status: 'done', data: response.data };
@@ -411,7 +461,8 @@ jQuery(function ($) {
             prompt: $('#mpa-wz-prompt').val() || '',
             position: first + 1,
             total: state.images.length,
-            previous_titles: titlesExcept(ids)
+            previous_titles: titlesExcept(ids),
+            hints: ids.map(hintFor)
         }).then(response => {
             if (response && response.success) {
                 const redo = [];
